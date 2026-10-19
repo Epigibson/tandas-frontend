@@ -16,6 +16,8 @@ class AuthRepository {
     required String password,
   }) async {
     try {
+      // ignore: avoid_print
+      print('DEBUG AUTH: Attempting login for ${phoneOrEmail.trim()}');
       final response = await _apiClient.dio.post(
         '/auth/login',
         data: {
@@ -24,16 +26,30 @@ class AuthRepository {
         },
         options: Options(contentType: Headers.formUrlEncodedContentType),
       );
+      // ignore: avoid_print
+      print('DEBUG AUTH: Response status ${response.statusCode}');
+      // ignore: avoid_print
+      print('DEBUG AUTH: Response data ${response.data}');
 
       final token = response.data['access_token'] as String;
       final userData = response.data['user'] as Map<String, dynamic>;
       final user = UserModel.fromJson(userData);
 
       await _persistAuth(token, user);
+      // ignore: avoid_print
+      print('DEBUG AUTH: User persisted successfully: ${user.fullName}');
       return user;
     } on DioException catch (e) {
-      final message = e.response?.data?['detail'] ?? 'Error de conexión con el servidor';
+      // ignore: avoid_print
+      print('DEBUG AUTH: DioException $e');
+      // ignore: avoid_print
+      print('DEBUG AUTH: DioException response: ${e.response?.data}');
+      final message = e.response?.data?['detail'] ?? 'Error de conexión con el servidor (${e.message})';
       throw Exception(message);
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('DEBUG AUTH: Unexpected error: $e\n$st');
+      rethrow;
     }
   }
 

@@ -30,7 +30,7 @@ class LiquidGlassContainer extends StatelessWidget {
     this.padding = const EdgeInsets.all(20),
     this.margin,
     this.borderRadius = BrandConfig.cardRadius,
-    this.blur = 18.0,
+    this.blur = 14.0,
     this.tintColor,
     this.opacity = 0.08,
     this.borderOpacity = 0.22,
@@ -136,20 +136,23 @@ class LiquidGlassBackground extends StatelessWidget {
           color: BrandConfig.darkBackground,
         ),
 
-        // Orbe 1: Luz Esmeralda / Primaria Superior Derecha
+        // Orbe 1: Luz Esmeralda / Primaria Superior Derecha (Gradiente Radial nativo sin overhead de GPU)
         Positioned(
-          top: -60,
-          right: -80,
+          top: -80,
+          right: -90,
           child: Container(
-            width: size.width * 0.75,
-            height: size.width * 0.75,
+            width: size.width * 0.9,
+            height: size.width * 0.9,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: orbColor1.withValues(alpha: 0.18),
-            ),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 90, sigmaY: 90),
-              child: const SizedBox.expand(),
+              gradient: RadialGradient(
+                colors: [
+                  orbColor1.withValues(alpha: 0.28),
+                  orbColor1.withValues(alpha: 0.12),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.45, 1.0],
+              ),
             ),
           ),
         ),
@@ -157,35 +160,41 @@ class LiquidGlassBackground extends StatelessWidget {
         // Orbe 2: Luz Ámbar / Dorada Centro-Izquierda
         Positioned(
           top: size.height * 0.35,
-          left: -100,
+          left: -110,
           child: Container(
-            width: size.width * 0.65,
-            height: size.width * 0.65,
+            width: size.width * 0.8,
+            height: size.width * 0.8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: orbColor2.withValues(alpha: 0.12),
-            ),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
-              child: const SizedBox.expand(),
+              gradient: RadialGradient(
+                colors: [
+                  orbColor2.withValues(alpha: 0.22),
+                  orbColor2.withValues(alpha: 0.08),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
           ),
         ),
 
         // Orbe 3: Luz Profunda Inferior Derecha
         Positioned(
-          bottom: -80,
-          right: -40,
+          bottom: -90,
+          right: -50,
           child: Container(
-            width: size.width * 0.7,
-            height: size.width * 0.7,
+            width: size.width * 0.85,
+            height: size.width * 0.85,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: orbColor3.withValues(alpha: 0.22),
-            ),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 110, sigmaY: 110),
-              child: const SizedBox.expand(),
+              gradient: RadialGradient(
+                colors: [
+                  orbColor3.withValues(alpha: 0.32),
+                  orbColor3.withValues(alpha: 0.10),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.55, 1.0],
+              ),
             ),
           ),
         ),

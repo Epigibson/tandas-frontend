@@ -193,7 +193,7 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                     padding: const EdgeInsets.all(22),
                     borderRadius: BrandConfig.cardRadius,
                     tintColor: AppColors.primary,
-                    blur: 24,
+                    blur: 16,
                     opacity: 0.12,
                     borderOpacity: 0.3,
                     child: Row(

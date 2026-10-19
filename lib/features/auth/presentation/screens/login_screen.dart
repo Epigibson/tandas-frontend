@@ -22,6 +22,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-calienta la conexión con el servidor para que el login sea instantáneo
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(apiClientProvider).prewarmConnection();
+    });
+  }
+
+  @override
   void dispose() {
     _phoneOrEmailController.dispose();
     _passwordController.dispose();
@@ -35,10 +44,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     HapticFeedback.lightImpact();
 
     try {
+      // ignore: avoid_print
+      print('LOGIN_SCREEN: Starting login...');
       await ref.read(authControllerProvider.notifier).login(
             phoneOrEmail: _phoneOrEmailController.text.trim(),
             password: _passwordController.text,
           );
+      // ignore: avoid_print
+      print('LOGIN_SCREEN: Login completed successfully');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -47,7 +60,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('LOGIN_SCREEN: Error caught: $e\n$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -129,7 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   LiquidGlassContainer(
                     padding: const EdgeInsets.all(24),
                     borderRadius: BrandConfig.modalRadius,
-                    blur: 24,
+                    blur: 16,
                     opacity: 0.08,
                     borderOpacity: 0.25,
                     child: Form(

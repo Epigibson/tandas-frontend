@@ -196,7 +196,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                     child: LiquidGlassContainer(
                       padding: const EdgeInsets.all(20),
                       borderRadius: BrandConfig.cardRadius,
-                      blur: 24,
+                      blur: 16,
                       tintColor: AppColors.gold,
                       opacity: 0.12,
                       borderOpacity: 0.35,

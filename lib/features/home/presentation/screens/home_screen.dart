@@ -122,7 +122,7 @@ class HomeScreen extends ConsumerWidget {
                 child: LiquidGlassContainer(
                   padding: const EdgeInsets.all(22),
                   borderRadius: 24,
-                  blur: 20,
+                  blur: 14,
                   tintColor: AppColors.primary,
                   opacity: 0.12,
                   borderOpacity: 0.28,
