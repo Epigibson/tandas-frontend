@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+import 'brand_config.dart';
 
 class AppTheme {
   static ThemeData get darkTheme {
@@ -41,7 +42,7 @@ class AppTheme {
         color: AppColors.darkCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(BrandConfig.cardRadius),
           side: const BorderSide(color: AppColors.darkBorder, width: 1),
         ),
       ),
@@ -62,7 +63,7 @@ class AppTheme {
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(BrandConfig.buttonRadius),
           ),
           textStyle: GoogleFonts.outfit(
             fontSize: 16,
@@ -111,7 +112,7 @@ class AppTheme {
         color: AppColors.lightCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(BrandConfig.cardRadius),
           side: const BorderSide(color: AppColors.lightBorder, width: 1),
         ),
       ),
@@ -132,7 +133,7 @@ class AppTheme {
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(BrandConfig.buttonRadius),
           ),
           textStyle: GoogleFonts.outfit(
             fontSize: 16,

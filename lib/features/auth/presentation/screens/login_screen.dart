@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/brand_config.dart';
 import '../controllers/auth_controller.dart';
 import 'register_screen.dart';
 
@@ -104,20 +105,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 24),
 
                   // Títulos
-                  const Text(
-                    'Tandas México',
+                  Text(
+                    BrandConfig.appName,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Ahorro familiar claro, puntual y sin fricción.',
+                  Text(
+                    BrandConfig.appTagline,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.darkTextSecondary,
                     ),

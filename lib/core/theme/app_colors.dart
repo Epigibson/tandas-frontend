@@ -1,35 +1,38 @@
 import 'package:flutter/material.dart';
+import 'brand_config.dart';
 
+/// AppColors actúa como puente directo hacia BrandConfig.
+/// Para cambiar colores o estilos globales, edita: `brand_config.dart`.
 class AppColors {
-  // Primarios Esmeralda y Menta
-  static const Color primary = Color(0xFF00C896); // Menta neón fintech
-  static const Color primaryDark = Color(0xFF09392E); // Esmeralda bosque profundo
-  static const Color primaryLight = Color(0xFFE6F9F4);
+  // Primarios
+  static const Color primary = BrandConfig.primary;
+  static const Color primaryDark = BrandConfig.primaryDark;
+  static const Color primaryLight = BrandConfig.primaryLight;
 
-  // Acentos de Turno Dorado / Oro (para números que cobran y logros)
-  static const Color gold = Color(0xFFFFB800);
+  // Acentos de Turno Dorado / Oro
+  static const Color gold = BrandConfig.secondary;
   static const Color goldLight = Color(0xFFFFF7E6);
-  static const Color goldDark = Color(0xFFB38100);
+  static const Color goldDark = BrandConfig.secondaryDark;
 
-  // Modo Oscuro (OLED Premium)
-  static const Color darkBg = Color(0xFF0D1312);
-  static const Color darkSurface = Color(0xFF151E1C);
-  static const Color darkCard = Color(0xFF1B2825);
-  static const Color darkBorder = Color(0xFF263834);
-  static const Color darkTextPrimary = Color(0xFFF1F5F4);
-  static const Color darkTextSecondary = Color(0xFF8FA7A0);
+  // Modo Oscuro
+  static const Color darkBg = BrandConfig.darkBackground;
+  static const Color darkSurface = BrandConfig.darkSurface;
+  static const Color darkCard = BrandConfig.darkCard;
+  static const Color darkBorder = BrandConfig.darkBorder;
+  static const Color darkTextPrimary = BrandConfig.darkTextPrimary;
+  static const Color darkTextSecondary = BrandConfig.darkTextSecondary;
 
-  // Modo Claro Minimalista
-  static const Color lightBg = Color(0xFFF7FAF9);
-  static const Color lightSurface = Colors.white;
-  static const Color lightCard = Colors.white;
-  static const Color lightBorder = Color(0xFFE4EDE9);
-  static const Color lightTextPrimary = Color(0xFF11221F);
-  static const Color lightTextSecondary = Color(0xFF5A726C);
+  // Modo Claro
+  static const Color lightBg = BrandConfig.lightBackground;
+  static const Color lightSurface = BrandConfig.lightSurface;
+  static const Color lightCard = BrandConfig.lightCard;
+  static const Color lightBorder = BrandConfig.lightBorder;
+  static const Color lightTextPrimary = BrandConfig.lightTextPrimary;
+  static const Color lightTextSecondary = BrandConfig.lightTextSecondary;
 
   // Estados
-  static const Color success = Color(0xFF10B981);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color error = Color(0xFFEF4444);
-  static const Color info = Color(0xFF3B82F6);
+  static const Color success = BrandConfig.success;
+  static const Color warning = BrandConfig.warning;
+  static const Color error = BrandConfig.error;
+  static const Color info = BrandConfig.info;
 }

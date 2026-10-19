@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/brand_config.dart';
 import '../../../tanda_detail/presentation/screens/tanda_detail_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,9 +41,7 @@ class HomeScreen extends ConsumerWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: AppColors.primary, width: 2),
-                            gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.primaryDark],
-                            ),
+                            gradient: BrandConfig.avatarGradient,
                           ),
                           child: Center(
                             child: Text(
@@ -58,9 +57,9 @@ class HomeScreen extends ConsumerWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              '¡Hola, compadre!',
-                              style: TextStyle(
+                            Text(
+                              BrandConfig.greeting,
+                              style: const TextStyle(
                                 fontSize: 13,
                                 color: AppColors.darkTextSecondary,
                               ),
@@ -122,15 +121,7 @@ class HomeScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF0F4B3C),
-                        Color(0xFF092921),
-                        Color(0xFF061A15),
-                      ],
-                    ),
+                    gradient: BrandConfig.heroCardGradient,
                     border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                     boxShadow: [
                       BoxShadow(

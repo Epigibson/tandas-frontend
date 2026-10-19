@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/brand_config.dart';
 import '../controllers/tanda_controller.dart';
 
 class CreateTandaScreen extends ConsumerStatefulWidget {
@@ -188,9 +189,7 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(22),
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primaryDark, Color(0xFF08221B)],
-                    ),
+                    gradient: BrandConfig.createSummaryGradient,
                     border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                   ),
                   child: Row(
