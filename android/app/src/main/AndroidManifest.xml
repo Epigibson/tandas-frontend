@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="Tandas México"
+        android:label="Tanditas Martínez"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

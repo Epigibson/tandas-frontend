@@ -19,10 +19,10 @@ class BrandConfig {
   // -----------------------------------------------------------------------
   // 🏷️ 1. IDENTIDAD DE MARCA (NOMBRES Y TEXTOS CLAVE)
   // -----------------------------------------------------------------------
-  static const String appName = 'Tandas México';
-  static const String appShortName = 'Tandas';
-  static const String appTagline = 'Ahorro familiar claro, puntual y sin fricción.';
-  static const String greeting = '¡Hola, compadre!';
+  static const String appName = 'Tanditas Martínez';
+  static const String appShortName = 'Tanditas';
+  static const String appTagline = 'Ahorro familiar con ritmo de Caravana Show 🎶';
+  static const String greeting = '¡Qué onda, Martínez!';
   static const String currencySymbol = '\$';
   static const String currencyCode = 'MXN';
 
