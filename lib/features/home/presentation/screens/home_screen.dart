@@ -7,6 +7,8 @@ import '../../../tanda_detail/presentation/screens/tanda_detail_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../tanda_creator/presentation/controllers/tanda_controller.dart';
+import '../../../tanda_creator/presentation/screens/create_tanda_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -252,6 +254,12 @@ class HomeScreen extends ConsumerWidget {
                         color: AppColors.primary,
                         onTap: () {
                           HapticFeedback.lightImpact();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CreateTandaScreen(),
+                            ),
+                          );
                         },
                       ),
                     ),
@@ -264,6 +272,7 @@ class HomeScreen extends ConsumerWidget {
                         color: AppColors.gold,
                         onTap: () {
                           HapticFeedback.lightImpact();
+                          _showJoinDialog(context, ref);
                         },
                       ),
                     ),
@@ -283,64 +292,181 @@ class HomeScreen extends ConsumerWidget {
                       'Tandas de la Familia',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    const Text(
-                      'Ver todas',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh, size: 20, color: AppColors.primary),
+                      tooltip: 'Actualizar',
+                      onPressed: () => ref.invalidate(myTandasProvider),
                     ),
                   ],
                 ),
               ),
             ),
 
-            // Tarjetas de Tandas Activas
-            SliverList(
-              delegate: SliverChildListDelegate([
-                _buildTandaCard(
-                  context: context,
-                  title: 'Tanda Familiar Fin de Año 🎄',
-                  frequency: 'Quincenal • \$1,000 MXN',
-                  currentSlot: 3,
-                  totalSlots: 10,
-                  potAmount: 10000,
-                  isOrganizer: true,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TandaDetailScreen(),
+            // Lista Dinámica de Tandas desde Supabase
+            ref.watch(myTandasProvider).when(
+                  data: (tandas) {
+                    if (tandas.isEmpty) {
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                          child: Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardTheme.color,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.darkBorder),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.group_outlined, size: 48, color: AppColors.primary),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'Aún no tienes tandas activas',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Crea tu primera tanda familiar o únete con un código de WhatsApp.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const CreateTandaScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('¡Crear mi Primera Tanda!'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final tanda = tandas[index];
+                          final isOrganizer = currentUser?.id == tanda.organizerId;
+
+                          return _buildTandaCard(
+                            context: context,
+                            title: tanda.title,
+                            frequency: '${tanda.frequency.toUpperCase()} • \$${tanda.contributionAmount.toStringAsFixed(0)} MXN',
+                            currentSlot: 1,
+                            totalSlots: tanda.totalSlots,
+                            potAmount: tanda.payoutTotal,
+                            isOrganizer: isOrganizer,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const TandaDetailScreen(),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        childCount: tandas.length,
                       ),
                     );
                   },
-                ),
-                _buildTandaCard(
-                  context: context,
-                  title: 'Tanda Primos & Hermanos 🏖️',
-                  frequency: 'Semanal • \$500 MXN',
-                  currentSlot: 6,
-                  totalSlots: 10,
-                  potAmount: 5000,
-                  isOrganizer: false,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TandaDetailScreen(),
+                  loading: () => const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(
+                        child: CircularProgressIndicator(color: AppColors.primary),
                       ),
-                    );
-                  },
+                    ),
+                  ),
+                  error: (err, _) => SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text('Error al cargar tandas: $err'),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 40),
-              ]),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ],
         ),
       ),
+    );
+  }
+
+  void _showJoinDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.darkSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Unirme a una Tanda'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Pega el código de invitación que te compartieron por WhatsApp:',
+                style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'ej. TANDA-A1B2C3',
+                  prefixIcon: const Icon(Icons.vpn_key_outlined, color: AppColors.primary),
+                  filled: true,
+                  fillColor: AppColors.darkCard,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final code = controller.text.trim();
+                if (code.isEmpty) return;
+                Navigator.pop(context);
+                try {
+                  await ref.read(tandaCreatorControllerProvider.notifier).joinTanda(code);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('¡Te has unido a la tanda con éxito! 🎉'),
+                        backgroundColor: AppColors.primaryDark,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString().replaceAll('Exception: ', '')),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Unirme'),
+            ),
+          ],
+        );
+      },
     );
   }
 
