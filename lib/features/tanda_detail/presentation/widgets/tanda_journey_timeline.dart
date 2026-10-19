@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/brand_config.dart';
+import '../../../../shared/widgets/liquid_glass.dart';
 
 class SlotItemData {
   final int slotNumber;
@@ -77,40 +79,23 @@ class TandaJourneyTimeline extends StatelessWidget {
             ),
             const SizedBox(width: 16),
 
-            // Tarjeta de Información del Turno
+            // Tarjeta de Información del Turno con Vidrio Líquido
             Expanded(
-              child: GestureDetector(
+              child: LiquidGlassContainer(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                borderRadius: BrandConfig.cardRadius,
+                blur: slot.isCurrent ? 24 : 16,
+                tintColor: slot.isCurrent
+                    ? AppColors.gold
+                    : (slot.isCompleted ? AppColors.primary : null),
+                opacity: slot.isCurrent ? 0.14 : (slot.isCompleted ? 0.08 : 0.05),
+                borderOpacity: slot.isCurrent ? 0.45 : (slot.isCompleted ? 0.25 : 0.15),
                 onTap: () {
                   HapticFeedback.selectionClick();
                   onSlotTap?.call(slot);
                 },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: slot.isCurrent
-                        ? AppColors.darkSurface
-                        : Theme.of(context).cardTheme.color,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: slot.isCurrent
-                          ? AppColors.gold
-                          : (slot.isCompleted
-                              ? AppColors.primary.withValues(alpha: 0.3)
-                              : AppColors.darkBorder),
-                      width: slot.isCurrent ? 2 : 1,
-                    ),
-                    boxShadow: slot.isCurrent
-                        ? [
-                            BoxShadow(
-                              color: AppColors.gold.withValues(alpha: 0.2),
-                              blurRadius: 16,
-                              spreadRadius: 2,
-                            )
-                          ]
-                        : null,
-                  ),
-                  child: Row(
+                child: Row(
                     children: [
                       // Avatar o Inicial
                       CircleAvatar(
@@ -207,9 +192,8 @@ class TandaJourneyTimeline extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          ],
-        ).animate().fadeIn(duration: 300.ms, delay: (index * 60).ms).slideX(begin: 0.05);
+            ],
+          ).animate().fadeIn(duration: 300.ms, delay: (index * 60).ms).slideX(begin: 0.05);
       },
     );
   }

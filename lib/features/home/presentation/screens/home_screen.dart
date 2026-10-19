@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
+import '../../../../shared/widgets/liquid_glass.dart';
 import '../../../tanda_detail/presentation/screens/tanda_detail_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,8 +24,9 @@ class HomeScreen extends ConsumerWidget {
     final score = currentUser?.tandaScore ?? 100;
 
     return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
+      body: LiquidGlassBackground(
+        child: SafeArea(
+          child: CustomScrollView(
           slivers: [
             // AppBar personalizado
             SliverToBoxAdapter(
@@ -117,20 +119,13 @@ class HomeScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                child: Container(
+                child: LiquidGlassContainer(
                   padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: BrandConfig.heroCardGradient,
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryDark.withValues(alpha: 0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
+                  borderRadius: 24,
+                  blur: 20,
+                  tintColor: AppColors.primary,
+                  opacity: 0.12,
+                  borderOpacity: 0.28,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -300,13 +295,10 @@ class HomeScreen extends ConsumerWidget {
                       return SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                          child: Container(
+                          child: LiquidGlassContainer(
                             padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardTheme.color,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: AppColors.darkBorder),
-                            ),
+                            borderRadius: BrandConfig.cardRadius,
+                            opacity: 0.08,
                             child: Column(
                               children: [
                                 const Icon(Icons.group_outlined, size: 48, color: AppColors.primary),
@@ -388,7 +380,8 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   void _showJoinDialog(BuildContext context, WidgetRef ref) {
@@ -468,29 +461,26 @@ class HomeScreen extends ConsumerWidget {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return LiquidGlassContainer(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardTheme.color,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.darkBorder),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      borderRadius: BrandConfig.buttonRadius,
+      opacity: 0.08,
+      borderOpacity: 0.25,
+      tintColor: color,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -510,17 +500,14 @@ class HomeScreen extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      child: GestureDetector(
+      child: LiquidGlassContainer(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardTheme.color,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.darkBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(18),
+        borderRadius: BrandConfig.cardRadius,
+        opacity: 0.07,
+        borderOpacity: 0.2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -592,7 +579,6 @@ class HomeScreen extends ConsumerWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }

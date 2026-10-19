@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
+import '../../../../shared/widgets/liquid_glass.dart';
 import '../controllers/tanda_controller.dart';
 
 class CreateTandaScreen extends ConsumerStatefulWidget {
@@ -175,63 +176,67 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nueva Tanda'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Tarjeta Resumen en Vivo del Pozo
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    gradient: BrandConfig.createSummaryGradient,
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Bolsa Total a Repartir',
-                            style: TextStyle(color: Colors.white70, fontSize: 12),
+      body: LiquidGlassBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Tarjeta Resumen en Vivo del Pozo con Vidrio Líquido Esmeralda
+                  LiquidGlassContainer(
+                    padding: const EdgeInsets.all(22),
+                    borderRadius: BrandConfig.cardRadius,
+                    tintColor: AppColors.primary,
+                    blur: 24,
+                    opacity: 0.12,
+                    borderOpacity: 0.3,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Bolsa Total a Repartir',
+                              style: TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              currencyFormat.format(_totalPot),
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.gold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.black38,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            currencyFormat.format(_totalPot),
+                          child: Text(
+                            '$_totalSlots turnos',
                             style: const TextStyle(
-                              fontSize: 26,
+                              color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.gold,
+                              fontSize: 13,
                             ),
                           ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black26,
-                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          '$_totalSlots turnos',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
                 // Nombre de la Tanda
                 TextFormField(
@@ -447,7 +452,8 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildAssignmentOption({
@@ -457,46 +463,40 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
   }) {
     final isSelected = _selectedAssignment == id;
 
-    return GestureDetector(
+    return LiquidGlassContainer(
       onTap: () {
         HapticFeedback.selectionClick();
         setState(() => _selectedAssignment = id);
       },
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.darkSurface : Theme.of(context).cardTheme.color,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.darkBorder,
-            width: isSelected ? 1.5 : 1,
+      padding: const EdgeInsets.all(14),
+      borderRadius: BrandConfig.inputRadius,
+      opacity: isSelected ? 0.12 : 0.05,
+      borderOpacity: isSelected ? 0.4 : 0.15,
+      tintColor: isSelected ? AppColors.primary : Colors.white,
+      child: Row(
+        children: [
+          Icon(
+            isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+            color: isSelected ? AppColors.primary : AppColors.darkTextSecondary,
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: isSelected ? AppColors.primary : AppColors.darkTextSecondary,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 12),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/brand_config.dart';
+import '../../../../shared/widgets/liquid_glass.dart';
 import '../controllers/auth_controller.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -79,11 +81,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear Cuenta'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Form(
+      body: LiquidGlassBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -184,13 +189,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 24),
 
                 // Sección Opcional de Datos Bancarios (CLABE)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.darkSurface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.darkBorder),
-                  ),
+                LiquidGlassContainer(
+                  padding: const EdgeInsets.all(18),
+                  borderRadius: BrandConfig.cardRadius,
+                  opacity: 0.08,
+                  borderOpacity: 0.25,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -269,7 +272,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   InputDecoration _buildInputDecoration({
@@ -284,17 +288,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       prefixIcon: Icon(icon, color: AppColors.primary),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: AppColors.darkSurface,
+      fillColor: AppColors.darkSurface.withValues(alpha: 0.6),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(BrandConfig.inputRadius),
         borderSide: const BorderSide(color: AppColors.darkBorder),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(BrandConfig.inputRadius),
         borderSide: const BorderSide(color: AppColors.darkBorder),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(BrandConfig.inputRadius),
         borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
       ),
     );

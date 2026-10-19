@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/brand_config.dart';
+import '../../../../shared/widgets/liquid_glass.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/tanda_detail_controller.dart';
 import '../widgets/tanda_journey_timeline.dart';
@@ -157,6 +159,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         return Scaffold(
           appBar: AppBar(
             title: Text(title),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
             actions: [
               if (isOrganizer)
                 IconButton(
@@ -182,26 +186,21 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
               ),
             ],
           ),
-          body: Column(
-            children: [
-              // Tarjeta de Ronda Activa
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.darkSurface,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.gold.withValues(alpha: 0.12),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
+          body: LiquidGlassBackground(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Tarjeta de Ronda Activa con Vidrio Líquido Ámbar
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: LiquidGlassContainer(
+                      padding: const EdgeInsets.all(20),
+                      borderRadius: BrandConfig.cardRadius,
+                      blur: 24,
+                      tintColor: AppColors.gold,
+                      opacity: 0.12,
+                      borderOpacity: 0.35,
+                      child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
@@ -332,7 +331,9 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
               ),
             ],
           ),
-          floatingActionButton: FloatingActionButton.extended(
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
             onPressed: () {
               HapticFeedback.lightImpact();
               if (activeRoundId.isNotEmpty) {
@@ -399,14 +400,15 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             final isApproved = status == 'approved';
             final isPending = status == 'submitted';
 
-            return Container(
+            return LiquidGlassContainer(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.darkBorder),
-              ),
+              borderRadius: BrandConfig.cardRadius,
+              opacity: isApproved ? 0.08 : (isPending ? 0.1 : 0.05),
+              borderOpacity: isApproved ? 0.25 : (isPending ? 0.35 : 0.15),
+              tintColor: isApproved
+                  ? AppColors.primary
+                  : (isPending ? Colors.orange : Colors.red),
               child: Column(
                 children: [
                   Row(
