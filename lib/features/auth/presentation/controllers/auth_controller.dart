@@ -24,16 +24,16 @@ class AuthController extends AsyncNotifier<UserModel?> {
     required String phoneOrEmail,
     required String password,
   }) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       final repository = ref.read(authRepositoryProvider);
-      return await repository.login(
+      final user = await repository.login(
         phoneOrEmail: phoneOrEmail,
         password: password,
       );
-    });
-    if (state.hasError) {
-      throw state.error!;
+      state = AsyncValue.data(user);
+    } catch (e) {
+      state = const AsyncValue.data(null);
+      rethrow;
     }
   }
 
@@ -45,10 +45,9 @@ class AuthController extends AsyncNotifier<UserModel?> {
     String? clabe,
     String? bankName,
   }) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       final repository = ref.read(authRepositoryProvider);
-      return await repository.register(
+      final user = await repository.register(
         phone: phone,
         email: email,
         fullName: fullName,
@@ -56,9 +55,10 @@ class AuthController extends AsyncNotifier<UserModel?> {
         clabe: clabe,
         bankName: bankName,
       );
-    });
-    if (state.hasError) {
-      throw state.error!;
+      state = AsyncValue.data(user);
+    } catch (e) {
+      state = const AsyncValue.data(null);
+      rethrow;
     }
   }
 

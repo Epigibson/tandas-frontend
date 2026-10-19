@@ -16,14 +16,12 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      final formData = FormData.fromMap({
-        'username': phoneOrEmail.trim(),
-        'password': password,
-      });
-
       final response = await _apiClient.dio.post(
         '/auth/login',
-        data: formData,
+        data: {
+          'username': phoneOrEmail.trim(),
+          'password': password,
+        },
         options: Options(contentType: Headers.formUrlEncodedContentType),
       );
 
