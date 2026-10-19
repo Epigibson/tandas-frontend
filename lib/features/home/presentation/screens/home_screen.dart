@@ -368,7 +368,7 @@ class HomeScreen extends ConsumerWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const TandaDetailScreen(),
+                                  builder: (context) => TandaDetailScreen(tandaId: tanda.id),
                                 ),
                               );
                             },
