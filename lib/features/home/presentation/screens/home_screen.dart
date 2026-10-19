@@ -5,12 +5,19 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../tanda_detail/presentation/screens/tanda_detail_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
+
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currencyFormat = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
+    final currentUser = ref.watch(authControllerProvider).value;
+    final displayName = currentUser?.fullName ?? 'Compadre';
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'C';
+    final score = currentUser?.tandaScore ?? 100;
 
     return Scaffold(
       body: SafeArea(
@@ -35,10 +42,10 @@ class HomeScreen extends StatelessWidget {
                               colors: [AppColors.primary, AppColors.primaryDark],
                             ),
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Text(
-                              'CP',
-                              style: TextStyle(
+                              initial,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -57,35 +64,48 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Carlos Pérez',
+                              displayName,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                           ],
                         ),
                       ],
                     ),
-                    // Badge de Reputación
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
-                      ),
-                      child: Row(
-                        children: const [
-                          Icon(Icons.verified, color: AppColors.primary, size: 16),
-                          SizedBox(width: 6),
-                          Text(
-                            '100 pts',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
+                    Row(
+                      children: [
+                        // Badge de Reputación
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                           ),
-                        ],
-                      ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.verified, color: AppColors.primary, size: 16),
+                              const SizedBox(width: 5),
+                              Text(
+                                '$score pts',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.logout_rounded, color: AppColors.darkTextSecondary, size: 22),
+                          tooltip: 'Cerrar sesión',
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            ref.read(authControllerProvider.notifier).logout();
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
