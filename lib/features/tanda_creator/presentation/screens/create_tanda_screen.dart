@@ -18,13 +18,13 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
   final _descriptionController = TextEditingController(text: 'Ahorro para vacaciones y regalos');
   final _customAmountController = TextEditingController();
 
-  double _selectedAmount = 1000.0;
+  double _selectedAmount = 200.0;
   int _totalSlots = 10;
   String _selectedFrequency = 'quincenal';
   String _selectedAssignment = 'draw';
   bool _isLoading = false;
 
-  final List<double> _quickAmounts = [500.0, 1000.0, 1500.0, 2000.0];
+  final List<double> _quickAmounts = [200.0, 300.0, 500.0, 1000.0, 1500.0, 2000.0];
 
   final Map<String, String> _frequencyLabels = {
     'semanal': 'Semanal (7 días)',
@@ -302,6 +302,29 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                       },
                     );
                   }).toList(),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _customAmountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'O escribe otro monto',
+                    hintText: 'Mínimo \$200 MXN',
+                    prefixText: '\$ ',
+                    prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                    filled: true,
+                    fillColor: AppColors.darkSurface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: AppColors.darkBorder),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    final parsed = double.tryParse(val.replaceAll(RegExp(r'[^0-9.]'), ''));
+                    if (parsed != null && parsed >= 200) {
+                      setState(() => _selectedAmount = parsed);
+                    }
+                  },
                 ),
                 const SizedBox(height: 24),
 
