@@ -134,8 +134,11 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         );
         final beneficiaryName = beneficiarySlot?['user']?['full_name'] ?? 'Por asignar';
 
+        final userSlots = slotsData.where((s) => s['user']?['id'] == currentUser?.id).toList();
+
         // Mapear slots a SlotItemData para la línea de tiempo
         final mappedSlots = slotsData.map((s) {
+          final slotId = s['id'] as String;
           final slotNum = s['slot_number'] as int;
           final user = s['user'];
           final isUser = user != null && user['id'] == currentUser?.id;
@@ -146,8 +149,10 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
           final isCompleted = s['payout_status'] == 'confirmed';
 
           return SlotItemData(
+            slotId: slotId,
             slotNumber: slotNum,
             userName: userName,
+            userId: user?['id'] as String?,
             dueDate: scheduledDate,
             amount: expectedAmount,
             isCompleted: isCompleted,
@@ -321,12 +326,46 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                   children: [
                     // Tab 1: El Camino de la Tanda
                     SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 90),
-                      child: TandaJourneyTimeline(
-                        slots: mappedSlots,
-                        onSlotTap: (slot) {
-                          _showSlotModal(context, slot, beneficiarySlot, isOrganizer, currentUser?.id);
-                        },
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (userSlots.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.confirmation_number_outlined, size: 16, color: AppColors.primary),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Tus números: ${userSlots.map((s) => '#${s['slot_number']}').join(', ')} (${userSlots.length} ${userSlots.length == 1 ? 'número' : 'números'}) • Toca cualquier número libre para apartar otro sin límite',
+                                      style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          TandaJourneyTimeline(
+                            slots: mappedSlots,
+                            onSlotTap: (slot) {
+                              _showSlotModal(
+                                context: context,
+                                slot: slot,
+                                beneficiarySlot: beneficiarySlot,
+                                isOrganizer: isOrganizer,
+                                currentUserId: currentUser?.id,
+                                tandaStatus: tanda['status'] as String? ?? 'recruiting',
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
 
@@ -515,31 +554,35 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     );
   }
 
-  void _showSlotModal(
-    BuildContext context,
-    SlotItemData slot,
-    dynamic beneficiarySlot,
-    bool isOrganizer,
-    String? currentUserId,
-  ) {
+  void _showSlotModal({
+    required BuildContext context,
+    required SlotItemData slot,
+    required dynamic beneficiarySlot,
+    required bool isOrganizer,
+    required String? currentUserId,
+    required String tandaStatus,
+  }) {
     final currencyFormat = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
+    final isMySlot = slot.userId != null && slot.userId == currentUserId;
+    final canClaim = slot.isAvailable && (tandaStatus == 'recruiting' || tandaStatus == 'draft');
+    final canRelease = isMySlot && (tandaStatus == 'recruiting' || tandaStatus == 'draft');
 
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.darkSurface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
                 child: Container(
-                  width: 40,
+                  width: 36,
                   height: 4,
                   decoration: BoxDecoration(
                     color: Colors.white24,
@@ -547,31 +590,188 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Turno #${slot.slotNumber} • ${slot.userName}',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Turno #${slot.slotNumber}',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  if (isMySlot)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle, size: 14, color: AppColors.primary),
+                          SizedBox(width: 4),
+                          Text(
+                            'Tu Turno',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (slot.isAvailable)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Disponible',
+                        style: TextStyle(
+                          color: AppColors.gold,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
-                'Fecha programada de cobro: ${DateFormat('dd MMMM yyyy', 'es_MX').format(slot.dueDate)}',
-                style: const TextStyle(color: AppColors.darkTextSecondary),
+                slot.isAvailable ? 'Este número está libre (puedes apartarlo para ti)' : slot.userName,
+                style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
               ),
-              const SizedBox(height: 18),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.account_balance, color: AppColors.primary),
-                title: const Text('Bolsa total a recibir'),
-                trailing: Text(
-                  currencyFormat.format(slot.amount),
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.gold),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.darkCard,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.darkBorder),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Fecha de cobro:', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                        Text(
+                          DateFormat('dd MMMM yyyy', 'es_MX').format(slot.dueDate),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Bolsa total a recibir:', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                        Text(
+                          currencyFormat.format(slot.amount),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppColors.gold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              if (canClaim) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                    label: Text('¡Apartar Turno #${slot.slotNumber} para mí!'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.darkBg,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      HapticFeedback.mediumImpact();
+                      try {
+                        await ref.read(tandaDetailActionsProvider).claimSlot(
+                              slotId: slot.slotId,
+                              tandaId: widget.tandaId,
+                            );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('¡Apartaste el Turno #${slot.slotNumber}! 🎉 Puedes apartar más números si gustas.'),
+                              backgroundColor: AppColors.primaryDark,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.toString().replaceAll('Exception: ', '')),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (canRelease) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.remove_circle_outline, color: Colors.orangeAccent, size: 18),
+                    label: const Text('Liberar este turno', style: TextStyle(color: Colors.orangeAccent)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.orangeAccent),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      HapticFeedback.lightImpact();
+                      try {
+                        await ref.read(tandaDetailActionsProvider).releaseSlot(
+                              slotId: slot.slotId,
+                              tandaId: widget.tandaId,
+                            );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Turno #${slot.slotNumber} liberado con éxito'),
+                              backgroundColor: AppColors.darkCard,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.toString().replaceAll('Exception: ', '')),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text('Cerrar'),
                 ),

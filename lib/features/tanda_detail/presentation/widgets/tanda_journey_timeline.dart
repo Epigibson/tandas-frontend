@@ -6,8 +6,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 
 class SlotItemData {
+  final String slotId;
   final int slotNumber;
   final String userName;
+  final String? userId;
   final String? avatarUrl;
   final DateTime dueDate;
   final double amount;
@@ -16,8 +18,10 @@ class SlotItemData {
   final bool isAvailable;
 
   const SlotItemData({
+    required this.slotId,
     required this.slotNumber,
     required this.userName,
+    this.userId,
     this.avatarUrl,
     required this.dueDate,
     required this.amount,

@@ -73,6 +73,28 @@ class TandaDetailActions {
     _ref.invalidate(tandaDetailProvider(tandaId));
   }
 
+  Future<void> claimSlot({
+    required String slotId,
+    required String tandaId,
+  }) async {
+    final apiClient = _ref.read(apiClientProvider);
+    await apiClient.dio.post('/slots/$slotId/claim');
+
+    _ref.invalidate(tandaDetailProvider(tandaId));
+    _ref.invalidate(myTandasProvider);
+  }
+
+  Future<void> releaseSlot({
+    required String slotId,
+    required String tandaId,
+  }) async {
+    final apiClient = _ref.read(apiClientProvider);
+    await apiClient.dio.post('/slots/$slotId/release');
+
+    _ref.invalidate(tandaDetailProvider(tandaId));
+    _ref.invalidate(myTandasProvider);
+  }
+
   Future<void> triggerDraw({
     required String tandaId,
   }) async {
