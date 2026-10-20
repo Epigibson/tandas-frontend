@@ -9,6 +9,7 @@ import '../../../tanda_detail/presentation/screens/tanda_detail_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../auth/presentation/screens/login_screen.dart';
 import '../../../tanda_creator/presentation/controllers/tanda_controller.dart';
 import '../../../tanda_creator/presentation/screens/create_tanda_screen.dart';
 
@@ -129,6 +130,10 @@ class HomeScreen extends ConsumerWidget {
                           onPressed: () {
                             HapticFeedback.mediumImpact();
                             ref.read(authControllerProvider.notifier).logout();
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (context) => const LoginScreen()),
+                              (route) => false,
+                            );
                           },
                         ),
                       ],

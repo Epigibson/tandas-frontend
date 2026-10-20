@@ -3,9 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
-import '../../../auth/presentation/controllers/auth_controller.dart';
-import '../../../auth/presentation/screens/login_screen.dart';
-import '../../../home/presentation/screens/home_screen.dart';
+import '../../../../main.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -26,13 +24,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     await Future.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
 
-    final user = ref.read(authControllerProvider).value;
-
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (context, animation, secondaryAnimation) {
-          return user != null ? const HomeScreen() : const LoginScreen();
+          return const AuthGate();
         },
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);

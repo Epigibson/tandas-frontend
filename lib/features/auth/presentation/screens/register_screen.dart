@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 import '../controllers/auth_controller.dart';
+import '../../../home/presentation/screens/home_screen.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -52,12 +53,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           );
 
       if (mounted) {
-        Navigator.pop(context); // Regresa o entra al flujo principal
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('¡Cuenta creada con éxito! Bienvenido a las Tandas 🎉'),
             backgroundColor: AppColors.primaryDark,
           ),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
         );
       }
     } catch (e) {

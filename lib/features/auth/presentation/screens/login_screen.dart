@@ -6,6 +6,7 @@ import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 import '../controllers/auth_controller.dart';
 import 'register_screen.dart';
+import '../../../home/presentation/screens/home_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -58,6 +59,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             content: Text('¡Bienvenido de vuelta, compadre! 🎉'),
             backgroundColor: AppColors.primaryDark,
           ),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
         );
       }
     } catch (e, st) {
