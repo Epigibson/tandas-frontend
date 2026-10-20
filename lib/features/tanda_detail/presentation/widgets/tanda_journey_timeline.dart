@@ -131,30 +131,38 @@ class TandaJourneyTimeline extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  'Turno #${slot.slotNumber}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 11,
-                                    color: slot.isCurrent
-                                        ? AppColors.gold
-                                        : AppColors.darkTextSecondary,
+                                Flexible(
+                                  child: Text(
+                                    'Turno #${slot.slotNumber}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                      color: slot.isCurrent
+                                          ? AppColors.gold
+                                          : AppColors.darkTextSecondary,
+                                    ),
                                   ),
                                 ),
                                 if (slot.isCurrent) ...[
                                   const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.gold.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Text(
-                                      '¡Cobra ahora!',
-                                      style: TextStyle(
-                                        color: AppColors.gold,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.gold.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        '¡Cobra ahora!',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: AppColors.gold,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -175,28 +183,36 @@ class TandaJourneyTimeline extends StatelessWidget {
                         ),
                       ),
 
-                      // Monto y Fecha
+                      // Monto y Fecha: ancho máximo para que el nombre conserve su espacio,
+                      // y se encogen si no caben (montos grandes o letra grande del sistema)
                       const SizedBox(width: 6),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            currencyFormat.format(slot.amount),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: slot.isCurrent ? AppColors.gold : Colors.white,
-                            ),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 110),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                currencyFormat.format(slot.amount),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: slot.isCurrent ? AppColors.gold : Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                slot.dueDate != null ? dateFormat.format(slot.dueDate!) : 'Por definir',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.darkTextSecondary,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            slot.dueDate != null ? dateFormat.format(slot.dueDate!) : 'Por definir',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.darkTextSecondary,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),

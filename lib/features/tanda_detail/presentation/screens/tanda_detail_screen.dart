@@ -415,15 +415,11 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         final roundsData = tanda['rounds'] as List<dynamic>? ?? [];
 
         // Solo se aceptan aportaciones en la ronda que está recaudando
-        final collectingRound = roundsData.firstWhere(
-          (r) => r['status'] == 'collecting',
-          orElse: () => null,
-        );
+        final collectingRound = roundsData.where((r) => r['status'] == 'collecting').firstOrNull;
         // La ronda en juego: recaudando o ya completa esperando la entrega de la bolsa
-        final displayRound = roundsData.firstWhere(
-          (r) => r['status'] == 'collecting' || r['status'] == 'completed_pending_payout',
-          orElse: () => null,
-        );
+        final displayRound = roundsData
+            .where((r) => r['status'] == 'collecting' || r['status'] == 'completed_pending_payout')
+            .firstOrNull;
         final readyPayoutSlotNumbers = roundsData
             .where((r) => r['status'] == 'completed_pending_payout')
             .map((r) => (r['slot_number_beneficiary'] as num).toInt())
@@ -439,10 +435,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         final beneficiarySlotNumber = (displayRound?['slot_number_beneficiary'] as num?)?.toInt();
         final beneficiarySlot = beneficiarySlotNumber == null
             ? null
-            : slotsData.firstWhere(
-                (s) => s['slot_number'] == beneficiarySlotNumber,
-                orElse: () => null,
-              );
+            : slotsData.where((s) => s['slot_number'] == beneficiarySlotNumber).firstOrNull;
         final beneficiaryName = beneficiarySlot?['user']?['full_name'] as String? ?? 'Por asignar';
 
         final userSlots = slotsData.where((s) => s['user']?['id'] == currentUser?.id).toList();
@@ -526,36 +519,42 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.star, color: AppColors.gold, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                roundNumber != null
-                                    ? 'Ronda Activa #$roundNumber de ${slotsData.length}'
-                                    : 'Reuniendo participantes',
-                                style: const TextStyle(
-                                  color: AppColors.gold,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                          const Icon(Icons.star, color: AppColors.gold, size: 16),
+                          const SizedBox(width: 6),
+                          Expanded(
                             child: Text(
-                              'Bolsa: ${currencyFormat.format(expectedAmount)}',
+                              roundNumber != null
+                                  ? 'Ronda Activa #$roundNumber de ${slotsData.length}'
+                                  : 'Reuniendo participantes',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 11,
+                                color: AppColors.gold,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Con montos grandes o letra grande, la cápsula se encoge en vez de desbordarse
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'Bolsa: ${currencyFormat.format(expectedAmount)}',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -597,10 +596,15 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Recaudado: ${currencyFormat.format(collectedAmount)}',
-                            style: const TextStyle(fontSize: 11, color: Colors.white70),
+                          Expanded(
+                            child: Text(
+                              'Recaudado: ${currencyFormat.format(collectedAmount)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11, color: Colors.white70),
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Text(
                             expectedAmount > 0
                                 ? '${((collectedAmount / expectedAmount) * 100).toInt()}%'
@@ -791,7 +795,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
 
         return ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 90),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
           itemCount: payments.length,
           itemBuilder: (context, index) {
             final p = payments[index] as Map<String, dynamic>;
@@ -806,10 +810,16 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             final rejectionReason = p['rejection_reason'] as String?;
             final isMine = p['payer_user_id'] == currentUserId;
             final canSeeProof = proofUrl != null && (isOrganizer || isMine);
+            // Cada ronda le paga al turno con su mismo número
+            final roundNumber = (p['slot_number'] as num?)?.toInt();
+            final statusColor = isApproved
+                ? AppColors.primary
+                : (isPending ? Colors.orange : Colors.red);
+            final statusLabel = isApproved ? 'Aprobado' : (isPending ? 'En revisión' : 'Rechazado');
 
             return LiquidGlassContainer(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
               borderRadius: BrandConfig.cardRadius,
               blur: 0, // Se repite por cada aportación: sin BackdropFilter por rendimiento
               opacity: isApproved ? 0.08 : (isPending ? 0.1 : 0.05),
@@ -820,59 +830,54 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
               child: Column(
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: isApproved
-                                ? AppColors.primary.withValues(alpha: 0.2)
-                                : (isPending
-                                    ? Colors.orange.withValues(alpha: 0.2)
-                                    : Colors.red.withValues(alpha: 0.2)),
-                            child: Icon(
-                              isApproved
-                                  ? Icons.check
-                                  : (isPending ? Icons.access_time : Icons.close),
-                              color: isApproved
-                                  ? AppColors.primary
-                                  : (isPending ? Colors.orange : Colors.red),
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(payerName,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                              Text(
-                                isApproved ? 'Aprobado' : (isPending ? 'En revisión' : 'Rechazado'),
-                                style: TextStyle(
-                                  color: isApproved
-                                      ? AppColors.primary
-                                      : (isPending ? Colors.orange : Colors.red),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: statusColor.withValues(alpha: 0.2),
+                        child: Icon(
+                          isApproved
+                              ? Icons.check
+                              : (isPending ? Icons.access_time : Icons.close),
+                          color: statusColor,
+                          size: 16,
+                        ),
                       ),
+                      const SizedBox(width: 10),
+                      // Expanded: con nombres largos o letra grande, el nombre se corta en vez de empalmarse
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              payerName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              roundNumber != null ? '$statusLabel · Ronda $roundNumber' : statusLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         currencyFormat.format(amount),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ],
                   ),
                   if (status == 'rejected' && rejectionReason != null && (isOrganizer || isMine)) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Motivo: $rejectionReason${isMine ? ' • Puedes volver a enviar tu comprobante.' : ''}',
-                        style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+                        style: const TextStyle(fontSize: 11, color: Colors.redAccent),
                       ),
                     ),
                   ],
@@ -880,41 +885,56 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
-                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                        icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          visualDensity: VisualDensity.compact,
+                          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        icon: const Icon(Icons.receipt_long_outlined, size: 16),
                         label: const Text('Ver comprobante'),
                         onPressed: () => _openProof(proofUrl),
                       ),
                     ),
                   if (isOrganizer && isPending) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                     const Divider(color: Colors.white12, height: 1),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
+                    // Botones a lo ancho: así caben aunque el teléfono tenga la letra grande
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton.icon(
-                          icon: const Icon(Icons.close, color: Colors.red, size: 18),
-                          label: const Text('Rechazar', style: TextStyle(color: Colors.red)),
-                          onPressed: isReviewing
-                              ? null
-                              : () => _handleReviewPayment(paymentId: paymentId, approved: false),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: BorderSide(color: Colors.red.withValues(alpha: 0.6)),
+                              visualDensity: VisualDensity.compact,
+                              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                            icon: const Icon(Icons.close, size: 16),
+                            label: const Text('Rechazar', maxLines: 1),
+                            onPressed: isReviewing
+                                ? null
+                                : () => _handleReviewPayment(paymentId: paymentId, approved: false),
+                          ),
                         ),
                         const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('Aprobar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.darkBg,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.darkBg,
+                              visualDensity: VisualDensity.compact,
+                              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                            icon: const Icon(Icons.check, size: 16),
+                            label: const Text('Aprobar', maxLines: 1),
+                            onPressed: isReviewing
+                                ? null
+                                : () {
+                                    HapticFeedback.lightImpact();
+                                    _handleReviewPayment(paymentId: paymentId, approved: true);
+                                  },
                           ),
-                          onPressed: isReviewing
-                              ? null
-                              : () {
-                                  HapticFeedback.lightImpact();
-                                  _handleReviewPayment(paymentId: paymentId, approved: true);
-                                },
                         ),
                       ],
                     ),
