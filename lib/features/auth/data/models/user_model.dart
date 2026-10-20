@@ -10,6 +10,8 @@ class UserModel {
   final int tandasCompleted;
   final int onTimePayments;
   final int latePayments;
+  // Se activa a mano en la BD; habilita el panel de administración
+  final bool isSuperuser;
 
   UserModel({
     required this.id,
@@ -23,6 +25,7 @@ class UserModel {
     required this.tandasCompleted,
     required this.onTimePayments,
     required this.latePayments,
+    this.isSuperuser = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -38,6 +41,7 @@ class UserModel {
       tandasCompleted: (json['tandas_completed'] as num?)?.toInt() ?? 0,
       onTimePayments: (json['on_time_payments'] as num?)?.toInt() ?? 0,
       latePayments: (json['late_payments'] as num?)?.toInt() ?? 0,
+      isSuperuser: json['is_superuser'] as bool? ?? false,
     );
   }
 
@@ -54,6 +58,7 @@ class UserModel {
       'tandas_completed': tandasCompleted,
       'on_time_payments': onTimePayments,
       'late_payments': latePayments,
+      'is_superuser': isSuperuser,
     };
   }
 }

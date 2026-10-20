@@ -12,6 +12,10 @@ final invitePreviewProvider = FutureProvider.family.autoDispose<Map<String, dyna
   return ref.watch(tandaRepositoryProvider).previewInvite(code);
 });
 
+final allTandasProvider = FutureProvider.autoDispose<List<TandaModel>>((ref) {
+  return ref.watch(tandaRepositoryProvider).getAllTandas();
+});
+
 final myTandasProvider = FutureProvider.autoDispose<List<TandaModel>>((ref) async {
   final repo = ref.watch(tandaRepositoryProvider);
   return await repo.getMyTandas();

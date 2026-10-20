@@ -15,6 +15,7 @@ class TandaModel {
   final String inviteCode;
   final DateTime? startDate;
   final DateTime createdAt;
+  final String? organizerName;
 
   // Solo vienen en el listado (GET /tandas): avance y turnos del usuario actual
   final int? currentRoundNumber;
@@ -38,6 +39,7 @@ class TandaModel {
     required this.inviteCode,
     this.startDate,
     required this.createdAt,
+    this.organizerName,
     this.currentRoundNumber,
     this.mySlotNumbers = const [],
     this.myNextPayoutDate,
@@ -61,6 +63,7 @@ class TandaModel {
       inviteCode: json['invite_code'] as String,
       startDate: json['start_date'] != null ? DateTime.parse(json['start_date']) : null,
       createdAt: DateTime.parse(json['created_at']),
+      organizerName: (json['organizer'] as Map<String, dynamic>?)?['full_name'] as String?,
       currentRoundNumber: (json['current_round_number'] as num?)?.toInt(),
       mySlotNumbers: (json['my_slot_numbers'] as List<dynamic>? ?? [])
           .map((n) => (n as num).toInt())

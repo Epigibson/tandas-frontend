@@ -10,6 +10,8 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
+import '../../../../shared/widgets/reset_code_dialog.dart';
+import '../../../admin/presentation/screens/admin_screen.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../tanda_creator/data/models/tanda_model.dart';
 import '../../../tanda_creator/presentation/screens/create_tanda_screen.dart';
@@ -44,7 +46,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     super.dispose();
   }
 
-  Future<void> _handlePickAndSubmitReceipt(String roundId) async {
+  Future<void> _handlePickAndSubmitReceipt(String roundId, {String? payerUserId, String? payerName}) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
 
@@ -58,12 +60,15 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             roundId: roundId,
             file: pickedFile,
             tandaId: widget.tandaId,
+            payerUserId: payerUserId,
           );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Comprobante subido! En espera de validación del organizador ⏱️'),
+          SnackBar(
+            content: Text(payerName != null
+                ? 'Registraste la aportación de ${payerName.split(' ').first}. Ahora apruébala en Aportaciones ✅'
+                : '¡Comprobante subido! En espera de validación del organizador ⏱️'),
             backgroundColor: AppColors.primaryDark,
           ),
         );
@@ -419,53 +424,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             userId: userId,
           );
       if (!mounted) return;
-      final firstName = userName.split(' ').first;
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          backgroundColor: AppColors.darkSurface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Código para $firstName'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SelectableText(
-                code,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 3,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Dura 30 minutos y sirve una sola vez. Con él, en el login, toca '
-                '"¿Olvidaste tu contraseña?" y escribe una nueva.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cerrar'),
-            ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.share_outlined, size: 18),
-              label: const Text('Enviar'),
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                SharePlus.instance.share(ShareParams(
-                  text: 'Tu código para cambiar tu contraseña en Tanditas es: $code (dura 30 minutos). '
-                      'En el login toca "¿Olvidaste tu contraseña?".',
-                ));
-              },
-            ),
-          ],
-        ),
-      );
+      await showResetCodeDialog(context, code: code, userName: userName);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -553,7 +512,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     return tandaAsync.when(
       data: (tanda) {
         final title = tanda['title'] as String? ?? 'Detalle de Tanda';
-        final isOrganizer = currentUser?.id == tanda['organizer_id'];
+        // El super admin tiene los mismos permisos que el organizador en cualquier tanda
+        final isOrganizer = currentUser?.id == tanda['organizer_id'] || currentUser?.isSuperuser == true;
         final inviteCode = tanda['invite_code'] as String? ?? '';
         final tandaStatus = tanda['status'] as String? ?? 'recruiting';
         final isRecruiting = tandaStatus == 'recruiting' || tandaStatus == 'draft';
@@ -591,11 +551,15 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
 
         // Si ya mandó comprobante de esta ronda (en revisión o aprobado) no se le vuelve a ofrecer
         final payments = ref.watch(tandaPaymentsProvider(widget.tandaId)).value ?? const [];
-        final alreadyPaidThisRound = collectingRoundId != null &&
-            payments.any((p) =>
-                p['round_id'] == collectingRoundId &&
-                p['payer_user_id'] == currentUser?.id &&
-                (p['status'] == 'submitted' || p['status'] == 'approved'));
+        final paidThisRound = collectingRoundId == null
+            ? const <String>{}
+            : payments
+                .where((p) =>
+                    p['round_id'] == collectingRoundId &&
+                    (p['status'] == 'submitted' || p['status'] == 'approved'))
+                .map((p) => p['payer_user_id'] as String)
+                .toSet();
+        final alreadyPaidThisRound = paidThisRound.contains(currentUser?.id);
 
         // Mapear slots a SlotItemData para la línea de tiempo
         final mappedSlots = slotsData.map((s) {
@@ -870,6 +834,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                                 isOrganizer: isOrganizer,
                                 currentUserId: currentUser?.id,
                                 tandaStatus: tandaStatus,
+                                collectingRoundId: collectingRoundId,
+                                paidUserIds: paidThisRound,
                               );
                             },
                           ),
@@ -1154,21 +1120,49 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     required bool isOrganizer,
     required String? currentUserId,
     required String tandaStatus,
+    required String? collectingRoundId,
+    required Set<String> paidUserIds,
   }) {
     final currencyFormat = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
+    final isRecruiting = tandaStatus == 'recruiting' || tandaStatus == 'draft';
     final isMySlot = slot.userId != null && slot.userId == currentUserId;
-    final canClaim = slot.isAvailable && (tandaStatus == 'recruiting' || tandaStatus == 'draft');
-    final canRelease = isMySlot && (tandaStatus == 'recruiting' || tandaStatus == 'draft');
-    final canConfirmPayout = isMySlot && slot.isPayoutReady && !slot.isCompleted;
+    final isOthersSlot = slot.userId != null && !isMySlot;
+    final canClaim = slot.isAvailable && isRecruiting;
+    // El organizador (o el admin) también puede liberar el número de alguien más
+    final canRelease = isRecruiting && (isMySlot || (isOrganizer && isOthersSlot));
+    final payoutPending = slot.isPayoutReady && !slot.isCompleted;
+    final canConfirmPayout = isMySlot && payoutPending;
+    // Acciones a nombre de quien no usa la app
+    final canConfirmForOther = isOrganizer && isOthersSlot && payoutPending;
+    final canPayForOther = isOrganizer &&
+        isOthersSlot &&
+        collectingRoundId != null &&
+        !paidUserIds.contains(slot.userId);
+    final canAssign = isOrganizer && slot.isAvailable && isRecruiting;
+    final firstName = slot.userName.replaceAll(' (Tú)', '').split(' ').first;
+    final messenger = ScaffoldMessenger.of(context);
+
+    Future<void> run(Future<void> Function() action, String success) async {
+      HapticFeedback.mediumImpact();
+      try {
+        await action();
+        messenger.showSnackBar(SnackBar(content: Text(success), backgroundColor: AppColors.primaryDark));
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+        );
+      }
+    }
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.darkSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) {
-        return Padding(
+        return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1364,6 +1358,104 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                 ),
                 const SizedBox(height: 8),
               ],
+              if (canAssign) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.person_outline, size: 18),
+                    label: const Text('Darle este número a alguien'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(sheetContext);
+                      final user = await showUserPicker(context);
+                      if (user == null) return;
+                      final name = (user['full_name'] as String).split(' ').first;
+                      await run(
+                        () => ref.read(tandaDetailActionsProvider).assignSlot(
+                              slotId: slot.slotId,
+                              userId: user['id'] as String,
+                              tandaId: widget.tandaId,
+                            ),
+                        'Le diste el Turno #${slot.slotNumber} a $name',
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (canPayForOther) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.receipt_long, size: 18),
+                    label: Text('Registrar la aportación de $firstName'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _handlePickAndSubmitReceipt(
+                        collectingRoundId,
+                        payerUserId: slot.userId,
+                        payerName: slot.userName,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (canConfirmForOther) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.verified_outlined, size: 18, color: AppColors.gold),
+                    label: Text('$firstName ya recibió su bolsa', style: const TextStyle(color: AppColors.gold)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.gold),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(sheetContext);
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          backgroundColor: AppColors.darkSurface,
+                          title: Text('¿$firstName ya recibió su bolsa?'),
+                          content: Text(
+                            'Confírmalo solo si ya tiene los ${currencyFormat.format(slot.amount)}. '
+                            'Se cierra la ronda y quedará registrado que lo confirmaste tú.',
+                            style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext, false),
+                              child: const Text('Todavía no'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(dialogContext, true),
+                              child: const Text('Sí, ya la recibió'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed != true) return;
+                      await run(
+                        () => ref.read(tandaDetailActionsProvider).confirmPayout(
+                              slotId: slot.slotId,
+                              tandaId: widget.tandaId,
+                            ),
+                        'Listo: quedó confirmada la bolsa de $firstName 💰',
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               if (isOrganizer && slot.userId != null && !isMySlot) ...[
                 SizedBox(
                   width: double.infinity,
@@ -1383,7 +1475,10 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.remove_circle_outline, color: Colors.orangeAccent, size: 18),
-                    label: const Text('Liberar este turno', style: TextStyle(color: Colors.orangeAccent)),
+                    label: Text(
+                      isMySlot ? 'Liberar este turno' : 'Quitarle este número a $firstName',
+                      style: const TextStyle(color: Colors.orangeAccent),
+                    ),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.orangeAccent),
                       padding: const EdgeInsets.symmetric(vertical: 12),

@@ -53,6 +53,17 @@ class TandaRepository {
     }
   }
 
+  /// Solo para el admin: todas las tandas de la app
+  Future<List<TandaModel>> getAllTandas() async {
+    try {
+      final response = await _apiClient.dio.get('/tandas', queryParameters: {'all_tandas': true});
+      final list = response.data as List<dynamic>;
+      return list.map((item) => TandaModel.fromJson(item as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw Exception(apiErrorMessage(e, 'Error al obtener las tandas'));
+    }
+  }
+
   Future<Map<String, dynamic>> getTandaDetail(String tandaId) async {
     try {
       final response = await _apiClient.dio.get('/tandas/$tandaId');

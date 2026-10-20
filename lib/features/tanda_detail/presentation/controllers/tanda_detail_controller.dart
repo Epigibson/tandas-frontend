@@ -38,6 +38,7 @@ class TandaDetailActions {
     required String roundId,
     required XFile file,
     required String tandaId,
+    String? payerUserId, // el organizador o el admin aporta a nombre de alguien más
   }) async {
     final apiClient = _ref.read(apiClientProvider);
 
@@ -60,7 +61,7 @@ class TandaDetailActions {
       // 2. Registrar pago
       await apiClient.dio.post(
         '/payments/round/$roundId/submit',
-        data: {'proof_image_url': fileUrl},
+        data: {'proof_image_url': fileUrl, 'payer_user_id': ?payerUserId},
       );
     });
 
@@ -108,6 +109,22 @@ class TandaDetailActions {
   }) async {
     final apiClient = _ref.read(apiClientProvider);
     await _guard('No se pudo apartar el turno', () => apiClient.dio.post('/slots/$slotId/claim'));
+
+    _ref.invalidate(tandaDetailProvider(tandaId));
+    _ref.invalidate(myTandasProvider);
+  }
+
+  /// Organizador o admin: pone a una persona en un número libre
+  Future<void> assignSlot({
+    required String slotId,
+    required String userId,
+    required String tandaId,
+  }) async {
+    final apiClient = _ref.read(apiClientProvider);
+    await _guard(
+      'No se pudo asignar el turno',
+      () => apiClient.dio.put('/slots/$slotId/assign-user', queryParameters: {'user_id': userId}),
+    );
 
     _ref.invalidate(tandaDetailProvider(tandaId));
     _ref.invalidate(myTandasProvider);

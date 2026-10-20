@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/auth/biometric_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../admin/presentation/screens/admin_screen.dart';
 import '../controllers/auth_controller.dart';
 
 /// Pide la huella y registra este teléfono. Devuelve true si quedó activada.
@@ -192,6 +193,20 @@ class _AccountSheetState extends ConsumerState<_AccountSheet> {
                 );
               },
             ),
+            if (user?.isSuperuser == true)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.verified_outlined, color: AppColors.gold),
+                title: const Text('Panel de administrador'),
+                subtitle: const Text(
+                  'Todas las tandas y los datos de cada persona',
+                  style: TextStyle(fontSize: 12, color: AppColors.darkTextSecondary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminScreen()));
+                },
+              ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.logout_rounded, color: AppColors.error),
