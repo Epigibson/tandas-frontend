@@ -36,21 +36,21 @@ class HomeScreen extends ConsumerWidget {
         child: SafeArea(
           child: CustomScrollView(
           slivers: [
-            // AppBar personalizado
+            // AppBar personalizado compacto
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
                 child: Row(
                   children: [
                     Expanded(
                       child: Row(
                         children: [
                           Container(
-                            width: 46,
-                            height: 46,
+                            width: 38,
+                            height: 38,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.primary, width: 2),
+                              border: Border.all(color: AppColors.primary, width: 1.5),
                               gradient: BrandConfig.avatarGradient,
                             ),
                             child: Center(
@@ -58,6 +58,7 @@ class HomeScreen extends ConsumerWidget {
                                 initial,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                   color: Colors.white,
                                 ),
                               ),
@@ -72,14 +73,14 @@ class HomeScreen extends ConsumerWidget {
                                 Text(
                                   BrandConfig.greeting,
                                   style: const TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     color: AppColors.darkTextSecondary,
                                   ),
                                 ),
                                 Text(
                                   displayName,
                                   style: const TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.darkTextPrimary,
                                   ),
@@ -98,32 +99,33 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         // Badge de Reputación
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.verified, color: AppColors.primary, size: 15),
-                              const SizedBox(width: 4),
+                              const Icon(Icons.verified, color: AppColors.primary, size: 13),
+                              const SizedBox(width: 3),
                               Text(
                                 '$score pts',
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.logout_rounded, color: AppColors.darkTextSecondary, size: 22),
+                          icon: const Icon(Icons.logout_rounded, color: AppColors.darkTextSecondary, size: 20),
                           tooltip: 'Cerrar sesión',
-                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                           onPressed: () {
                             HapticFeedback.mediumImpact();
                             ref.read(authControllerProvider.notifier).logout();
@@ -136,17 +138,17 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
-            // Tarjeta de Resumen Financiero con Gradiente Premium
+            // Tarjeta de Resumen Financiero con Gradiente Premium Compacto
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
                 child: LiquidGlassContainer(
-                  padding: const EdgeInsets.all(22),
-                  borderRadius: 24,
-                  blur: 14,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  borderRadius: 18,
+                  blur: 12,
                   tintColor: AppColors.primary,
-                  opacity: 0.12,
-                  borderOpacity: 0.28,
+                  opacity: 0.10,
+                  borderOpacity: 0.25,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -157,36 +159,36 @@ class HomeScreen extends ConsumerWidget {
                             'Total en Tandas Activas',
                             style: TextStyle(
                               color: Colors.white70,
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.black26,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               '$tandasCount ${tandasCount == 1 ? 'Tanda' : 'Tandas'}',
-                              style: const TextStyle(color: Colors.white, fontSize: 11),
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Text(
                         currencyFormat.format(totalSavings),
                         style: const TextStyle(
-                          fontSize: 32,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          letterSpacing: -0.5,
+                          letterSpacing: -0.3,
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 10),
                       const Divider(color: Colors.white12, height: 1),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
@@ -195,15 +197,15 @@ class HomeScreen extends ConsumerWidget {
                               children: [
                                 const Text(
                                   'Próximo a pagar',
-                                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                                  style: TextStyle(color: Colors.white60, fontSize: 11),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 2),
                                 Text(
                                   currencyFormat.format(nextToPay),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                    fontSize: 14,
                                   ),
                                 ),
                                 Text(
@@ -212,36 +214,38 @@ class HomeScreen extends ConsumerWidget {
                                       : 'Sin pagos pendientes',
                                   style: TextStyle(
                                     color: activeTandas.isNotEmpty ? AppColors.primary : Colors.white38,
-                                    fontSize: 11,
+                                    fontSize: 10,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
                           ),
-                          Container(width: 1, height: 36, color: Colors.white12),
-                          const SizedBox(width: 16),
+                          Container(width: 1, height: 28, color: Colors.white12),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
                                   'Próximo por cobrar',
-                                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                                  style: TextStyle(color: Colors.white60, fontSize: 11),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 2),
                                 Text(
                                   currencyFormat.format(nextToCollect),
                                   style: const TextStyle(
                                     color: AppColors.gold,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                    fontSize: 14,
                                   ),
                                 ),
                                 Text(
                                   activeTandas.isNotEmpty ? activeTandas.first.title : 'Sin cobros pendientes',
                                   style: TextStyle(
                                     color: activeTandas.isNotEmpty ? AppColors.gold : Colors.white38,
-                                    fontSize: 11,
+                                    fontSize: 10,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -253,14 +257,14 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+                ).animate().scale(duration: 350.ms, curve: Curves.easeOutBack),
               ),
             ),
 
-            // Botones de Acción Rápida
+            // Botones de Acción Rápida Compactos
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
                     Expanded(
@@ -280,7 +284,7 @@ class HomeScreen extends ConsumerWidget {
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: _buildActionButton(
                         context: context,
@@ -298,20 +302,26 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
-            // Encabezado de Sección "Mis Tandas"
+            // Encabezado de Sección "Mis Tandas" Compacto
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'Tandas de la Familia',
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkTextPrimary,
+                      ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.refresh, size: 20, color: AppColors.primary),
+                      icon: const Icon(Icons.refresh, size: 18, color: AppColors.primary),
                       tooltip: 'Actualizar',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                       onPressed: () => ref.invalidate(myTandasProvider),
                     ),
                   ],
@@ -319,42 +329,49 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
-            // Lista Dinámica de Tandas desde Supabase
+            // Lista Dinámica de Tandas desde Supabase Compacta
             ref.watch(myTandasProvider).when(
                   data: (tandas) {
                     if (tandas.isEmpty) {
                       return SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: LiquidGlassContainer(
-                            padding: const EdgeInsets.all(24),
-                            borderRadius: BrandConfig.cardRadius,
+                            padding: const EdgeInsets.all(18),
+                            borderRadius: 16,
                             opacity: 0.08,
                             child: Column(
                               children: [
-                                const Icon(Icons.group_outlined, size: 48, color: AppColors.primary),
-                                const SizedBox(height: 12),
+                                const Icon(Icons.group_outlined, size: 36, color: AppColors.primary),
+                                const SizedBox(height: 8),
                                 const Text(
                                   'Aún no tienes tandas activas',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 4),
                                 const Text(
                                   'Crea tu primera tanda familiar o únete con un código de WhatsApp.',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+                                  style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 12),
                                 ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const CreateTandaScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text('¡Crear mi Primera Tanda!'),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  height: 38,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const CreateTandaScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text('¡Crear mi Primera Tanda!'),
+                                  ),
                                 ),
                               ],
                             ),
@@ -494,21 +511,21 @@ class HomeScreen extends ConsumerWidget {
   }) {
     return LiquidGlassContainer(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      borderRadius: BrandConfig.buttonRadius,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      borderRadius: 14,
       opacity: 0.08,
       borderOpacity: 0.25,
       tintColor: color,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
+          Icon(icon, color: color, size: 17),
+          const SizedBox(width: 6),
           Text(
             label,
             style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
           ),
         ],
@@ -530,86 +547,86 @@ class HomeScreen extends ConsumerWidget {
     final progress = currentSlot / totalSlots;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: LiquidGlassContainer(
         onTap: onTap,
-        padding: const EdgeInsets.all(18),
-        borderRadius: BrandConfig.cardRadius,
+        padding: const EdgeInsets.all(14),
+        borderRadius: 16,
         opacity: 0.07,
         borderOpacity: 0.2,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 17,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isOrganizer)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Organizador',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (isOrganizer)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'Organizador',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                ],
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              frequency,
+              style: const TextStyle(
+                color: AppColors.darkTextSecondary,
+                fontSize: 12,
               ),
-              const SizedBox(height: 6),
-              Text(
-                frequency,
-                style: const TextStyle(
-                  color: AppColors.darkTextSecondary,
-                  fontSize: 13,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Turno actual: $currentSlot de $totalSlots',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Turno actual: $currentSlot de $totalSlots',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                Text(
+                  'Bolsa: ${currencyFormat.format(potAmount)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.gold,
+                    fontSize: 13,
                   ),
-                  Text(
-                    'Bolsa: ${currencyFormat.format(potAmount)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.gold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: AppColors.darkSurface,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                  minHeight: 6,
                 ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: AppColors.darkSurface,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                minHeight: 4,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 }
