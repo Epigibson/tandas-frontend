@@ -331,6 +331,71 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     }
   }
 
+  Future<void> _handleCreateResetCode({required String userId, required String userName}) async {
+    try {
+      final code = await ref.read(tandaDetailActionsProvider).createPasswordResetCode(
+            tandaId: widget.tandaId,
+            userId: userId,
+          );
+      if (!mounted) return;
+      final firstName = userName.split(' ').first;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.darkSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Código para $firstName'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SelectableText(
+                code,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 3,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Dura 30 minutos y sirve una sola vez. Con él, en el login, toca '
+                '"¿Olvidaste tu contraseña?" y escribe una nueva.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.share_outlined, size: 18),
+              label: const Text('Enviar'),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                SharePlus.instance.share(ShareParams(
+                  text: 'Tu código para cambiar tu contraseña en Tanditas es: $code (dura 30 minutos). '
+                      'En el login toca "¿Olvidaste tu contraseña?".',
+                ));
+              },
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   Future<bool?> _confirmPayoutDialog(double amount) {
     final currencyFormat = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
     return showDialog<bool>(
@@ -1166,6 +1231,20 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
+              ],
+              if (isOrganizer && slot.userId != null && !isMySlot) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.key_outlined, size: 18),
+                    label: const Text('Código para cambiar su contraseña'),
+                    onPressed: () async {
+                      Navigator.pop(sheetContext);
+                      await _handleCreateResetCode(userId: slot.userId!, userName: slot.userName);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 4),
               ],
               if (canRelease) ...[
                 SizedBox(

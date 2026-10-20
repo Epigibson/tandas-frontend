@@ -10,7 +10,7 @@ import '../../../tanda_detail/presentation/screens/tanda_detail_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import '../../../auth/presentation/screens/login_screen.dart';
+import '../../../auth/presentation/widgets/biometric_setup.dart';
 import '../../../tanda_creator/data/models/tanda_model.dart';
 import '../../../tanda_creator/presentation/controllers/tanda_controller.dart';
 import '../../../tanda_creator/presentation/screens/create_tanda_screen.dart';
@@ -45,7 +45,8 @@ class HomeScreen extends ConsumerWidget {
       ref.watch(tandaRealtimeProvider(tanda.id));
     }
 
-    return Scaffold(
+    return BiometricOfferGate(
+      child: Scaffold(
       body: LiquidGlassBackground(
         child: SafeArea(
           child: RefreshIndicator(
@@ -65,21 +66,24 @@ class HomeScreen extends ConsumerWidget {
                     Expanded(
                       child: Row(
                         children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.primary, width: 1.5),
-                              gradient: BrandConfig.avatarGradient,
-                            ),
-                            child: Center(
-                              child: Text(
-                                initial,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.white,
+                          GestureDetector(
+                            onTap: () => showAccountSheet(context),
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.primary, width: 1.5),
+                                gradient: BrandConfig.avatarGradient,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  initial,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
@@ -141,18 +145,15 @@ class HomeScreen extends ConsumerWidget {
                             ],
                           ),
                         ),
+                        // Cerrar sesión vive en el menú de cuenta; AuthGate regresa solo al login
                         IconButton(
-                          icon: const Icon(Icons.logout_rounded, color: AppColors.darkTextSecondary, size: 20),
-                          tooltip: 'Cerrar sesión',
+                          icon: const Icon(Icons.more_vert_rounded, color: AppColors.darkTextSecondary, size: 20),
+                          tooltip: 'Mi cuenta',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                           onPressed: () {
-                            HapticFeedback.mediumImpact();
-                            ref.read(authControllerProvider.notifier).logout();
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (context) => const LoginScreen()),
-                              (route) => false,
-                            );
+                            HapticFeedback.selectionClick();
+                            showAccountSheet(context);
                           },
                         ),
                       ],
@@ -450,6 +451,7 @@ class HomeScreen extends ConsumerWidget {
         ),
         ),
       ),
+    ),
     ),
   );
   }

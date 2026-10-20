@@ -78,6 +78,33 @@ class AuthController extends AsyncNotifier<UserModel?> {
     }
   }
 
+  /// Entrar con la llave del teléfono. La UI debe validar la huella antes de llamarlo.
+  Future<void> loginWithDevice() async {
+    try {
+      final user = await ref.read(authRepositoryProvider).loginWithDevice();
+      state = AsyncValue.data(user);
+    } catch (e) {
+      ref.invalidate(biometricAccountProvider);
+      state = const AsyncValue.data(null);
+      rethrow;
+    }
+  }
+
+  Future<void> resetPassword({
+    required String phoneOrEmail,
+    required String code,
+    required String newPassword,
+  }) async {
+    final user = await ref.read(authRepositoryProvider).resetPassword(
+          phoneOrEmail: phoneOrEmail,
+          code: code,
+          newPassword: newPassword,
+        );
+    ref.invalidate(biometricAccountProvider);
+    state = AsyncValue.data(user);
+  }
+
+  /// La huella sobrevive al logout a propósito: es lo que permite volver a entrar sin contraseña
   Future<void> logout() async {
     final repository = ref.read(authRepositoryProvider);
     await repository.logout();
@@ -88,3 +115,20 @@ class AuthController extends AsyncNotifier<UserModel?> {
 final authControllerProvider = AsyncNotifierProvider<AuthController, UserModel?>(() {
   return AuthController();
 });
+
+/// Cuenta con huella activada en este teléfono (null si no hay)
+final biometricAccountProvider = FutureProvider.autoDispose<BiometricAccount?>((ref) {
+  return ref.watch(authRepositoryProvider).getBiometricAccount();
+});
+
+/// El login con contraseña lo prende para que el Home ofrezca activar la huella una sola vez
+class BiometricOfferController extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void request() => state = true;
+
+  void consume() => state = false;
+}
+
+final biometricOfferProvider = NotifierProvider<BiometricOfferController, bool>(BiometricOfferController.new);

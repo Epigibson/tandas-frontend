@@ -119,6 +119,19 @@ class TandaDetailActions {
     _ref.invalidate(myTandasProvider);
   }
 
+  /// El organizador genera un código de 30 min para que un participante cambie su contraseña
+  Future<String> createPasswordResetCode({
+    required String tandaId,
+    required String userId,
+  }) async {
+    final apiClient = _ref.read(apiClientProvider);
+    final response = await _guard(
+      'No se pudo generar el código',
+      () => apiClient.dio.post('/tandas/$tandaId/members/$userId/reset-code'),
+    );
+    return response.data['code'] as String;
+  }
+
   Future<void> startTanda({
     required String tandaId,
   }) async {

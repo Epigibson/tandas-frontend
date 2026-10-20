@@ -46,6 +46,9 @@ dependencies:
   share_plus: ^13.3.1
   url_launcher: ^6.3.3
   realtime_client: ^2.13.2
+  local_auth: ^3.0.2
+  local_auth_android: ^2.3.0
+  local_auth_darwin: ^2.0.5
 
 dev_dependencies:
   flutter_test:
