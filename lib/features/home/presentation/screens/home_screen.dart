@@ -23,6 +23,14 @@ class HomeScreen extends ConsumerWidget {
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'C';
     final score = currentUser?.tandaScore ?? 100;
 
+    final tandasAsync = ref.watch(myTandasProvider);
+    final tandasList = tandasAsync.asData?.value ?? [];
+    final activeTandas = tandasList.where((t) => t.status == 'active' || t.status == 'draft').toList();
+    final totalSavings = activeTandas.fold<double>(0.0, (acc, t) => acc + t.payoutTotal);
+    final nextToPay = activeTandas.fold<double>(0.0, (acc, t) => acc + t.contributionAmount);
+    final nextToCollect = activeTandas.isNotEmpty ? activeTandas.first.payoutTotal : 0.0;
+    final tandasCount = activeTandas.length;
+
     return Scaffold(
       body: LiquidGlassBackground(
         child: SafeArea(
@@ -159,16 +167,16 @@ class HomeScreen extends ConsumerWidget {
                               color: Colors.black26,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
-                              '2 Tandas',
-                              style: TextStyle(color: Colors.white, fontSize: 11),
+                            child: Text(
+                              '$tandasCount ${tandasCount == 1 ? 'Tanda' : 'Tandas'}',
+                              style: const TextStyle(color: Colors.white, fontSize: 11),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        currencyFormat.format(20000),
+                        currencyFormat.format(totalSavings),
                         style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
@@ -191,16 +199,21 @@ class HomeScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  currencyFormat.format(1000),
+                                  currencyFormat.format(nextToPay),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
                                 ),
-                                const Text(
-                                  '31 Oct (Quincena)',
-                                  style: TextStyle(color: AppColors.primary, fontSize: 11),
+                                Text(
+                                  activeTandas.isNotEmpty
+                                      ? activeTandas.first.frequency.toUpperCase()
+                                      : 'Sin pagos pendientes',
+                                  style: TextStyle(
+                                    color: activeTandas.isNotEmpty ? AppColors.primary : Colors.white38,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ],
                             ),
@@ -217,16 +230,21 @@ class HomeScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  currencyFormat.format(10000),
+                                  currencyFormat.format(nextToCollect),
                                   style: const TextStyle(
                                     color: AppColors.gold,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
                                 ),
-                                const Text(
-                                  'Turno #3 • 15 Nov',
-                                  style: TextStyle(color: AppColors.gold, fontSize: 11),
+                                Text(
+                                  activeTandas.isNotEmpty ? activeTandas.first.title : 'Sin cobros pendientes',
+                                  style: TextStyle(
+                                    color: activeTandas.isNotEmpty ? AppColors.gold : Colors.white38,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
