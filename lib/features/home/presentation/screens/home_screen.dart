@@ -33,76 +33,87 @@ class HomeScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.primary, width: 2),
-                            gradient: BrandConfig.avatarGradient,
-                          ),
-                          child: Center(
-                            child: Text(
-                              initial,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.primary, width: 2),
+                              gradient: BrandConfig.avatarGradient,
+                            ),
+                            child: Center(
+                              child: Text(
+                                initial,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              BrandConfig.greeting,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.darkTextSecondary,
-                              ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  BrandConfig.greeting,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.darkTextSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  displayName,
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
-                            Text(
-                              displayName,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         // Badge de Reputación
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.verified, color: AppColors.primary, size: 16),
-                              const SizedBox(width: 5),
+                              const Icon(Icons.verified, color: AppColors.primary, size: 15),
+                              const SizedBox(width: 4),
                               Text(
                                 '$score pts',
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 13,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
                         IconButton(
                           icon: const Icon(Icons.logout_rounded, color: AppColors.darkTextSecondary, size: 22),
                           tooltip: 'Cerrar sesión',
+                          visualDensity: VisualDensity.compact,
                           onPressed: () {
                             HapticFeedback.mediumImpact();
                             ref.read(authControllerProvider.notifier).logout();
