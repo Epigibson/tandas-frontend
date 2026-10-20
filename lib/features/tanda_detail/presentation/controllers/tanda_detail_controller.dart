@@ -142,6 +142,13 @@ class TandaDetailActions {
     _ref.invalidate(myTandasProvider);
   }
 
+  Future<void> deleteTanda({
+    required String tandaId,
+  }) async {
+    await _ref.read(tandaRepositoryProvider).deleteTanda(tandaId);
+    _ref.invalidate(myTandasProvider);
+  }
+
   Future<void> triggerDraw({
     required String tandaId,
   }) async {

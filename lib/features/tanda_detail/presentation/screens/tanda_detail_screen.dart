@@ -11,6 +11,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../tanda_creator/data/models/tanda_model.dart';
+import '../../../tanda_creator/presentation/screens/create_tanda_screen.dart';
 import '../controllers/tanda_detail_controller.dart';
 import '../widgets/tanda_journey_timeline.dart';
 
@@ -233,7 +235,11 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     );
   }
 
-  Widget _buildRecruitingBanner({required bool isOrganizer, required int emptySlotsCount}) {
+  Widget _buildRecruitingBanner({
+    required bool isOrganizer,
+    required int emptySlotsCount,
+    DateTime? startDate,
+  }) {
     final isFull = emptySlotsCount == 0;
     final message = isOrganizer
         ? (isFull
@@ -255,6 +261,21 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(message, style: const TextStyle(fontSize: 12, color: AppColors.darkTextPrimary)),
+          if (startDate != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.event_outlined, size: 14, color: AppColors.gold),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Fecha de inicio: ${DateFormat("d 'de' MMMM 'de' y", 'es_MX').format(startDate.toLocal())}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.gold, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (isOrganizer && isFull) ...[
             const SizedBox(height: 10),
             ElevatedButton.icon(
@@ -287,8 +308,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('¿Iniciar la tanda?'),
         content: const Text(
-          'Se cierra el reclutamiento: ya no se podrán apartar, liberar ni sortear números. '
-          'La primera ronda empieza a recibir aportaciones desde hoy.',
+          'Se cierra el reclutamiento: ya no se podrán apartar, liberar ni sortear números, '
+          'ni editar la tanda. La primera ronda empieza a recibir aportaciones desde hoy.',
           style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
         ),
         actions: [
@@ -328,6 +349,66 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
       }
     } finally {
       if (mounted) setState(() => _isStarting = false);
+    }
+  }
+
+  Future<void> _handleEditTanda(Map<String, dynamic> tanda) async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => CreateTandaScreen(tanda: TandaModel.fromJson(tanda))),
+    );
+    if (saved == true) {
+      ref.invalidate(tandaDetailProvider(widget.tandaId));
+    }
+  }
+
+  Future<void> _handleDeleteTanda(String title) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 40),
+        title: Text('¿Eliminar "$title"?'),
+        content: const Text(
+          'Se borra la tanda con todos sus números apartados. Quienes ya entraron dejarán de verla. '
+          'Esto no se puede deshacer.',
+          style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    HapticFeedback.heavyImpact();
+    try {
+      await ref.read(tandaDetailActionsProvider).deleteTanda(tandaId: widget.tandaId);
+      navigator.pop();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Eliminaste la tanda "$title"'),
+          backgroundColor: AppColors.darkCard,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -476,6 +557,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         final inviteCode = tanda['invite_code'] as String? ?? '';
         final tandaStatus = tanda['status'] as String? ?? 'recruiting';
         final isRecruiting = tandaStatus == 'recruiting' || tandaStatus == 'draft';
+        final isDraw = tanda['assignment_method'] == 'draw';
+        final startDate = DateTime.tryParse(tanda['start_date'] as String? ?? '');
         final slotsData = tanda['slots'] as List<dynamic>? ?? [];
         final roundsData = tanda['rounds'] as List<dynamic>? ?? [];
 
@@ -547,8 +630,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             backgroundColor: Colors.transparent,
             elevation: 0,
             actions: [
-              // El sorteo solo tiene sentido antes de arrancar la tanda
-              if (isOrganizer && isRecruiting)
+              // El sorteo solo tiene sentido antes de arrancar la tanda y si no se eligieron números
+              if (isOrganizer && isRecruiting && isDraw)
                 IconButton(
                   icon: const Icon(Icons.casino_outlined, color: AppColors.gold),
                   tooltip: 'Ejecutar Sorteo Aleatorio',
@@ -564,6 +647,33 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                   SharePlus.instance.share(ShareParams(text: msg, subject: 'Invitación a la tanda "$title"'));
                 },
               ),
+              if (isOrganizer && isRecruiting)
+                PopupMenuButton<String>(
+                  tooltip: 'Opciones de la tanda',
+                  color: AppColors.darkSurface,
+                  onSelected: (value) {
+                    if (value == 'edit') _handleEditTanda(tanda);
+                    if (value == 'delete') _handleDeleteTanda(title);
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.edit_outlined, color: AppColors.primary),
+                        title: Text('Editar tanda'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                        title: Text('Eliminar tanda', style: TextStyle(color: AppColors.error)),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
           body: LiquidGlassBackground(
@@ -723,6 +833,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                             _buildRecruitingBanner(
                               isOrganizer: isOrganizer,
                               emptySlotsCount: emptySlotsCount,
+                              startDate: startDate,
                             ),
                           if (userSlots.isNotEmpty)
                             Container(
@@ -804,10 +915,29 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
       ),
+      // También llega aquí si el organizador eliminó la tanda mientras estaba abierta
       error: (e, _) => Scaffold(
         appBar: AppBar(),
         body: Center(
-          child: Text('Error al cargar la tanda: $e'),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 40, color: AppColors.darkTextSecondary),
+                const SizedBox(height: 12),
+                Text(
+                  e.toString().replaceAll('Exception: ', ''),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Volver'),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

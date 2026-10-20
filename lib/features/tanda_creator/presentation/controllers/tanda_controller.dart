@@ -8,6 +8,10 @@ final tandaRepositoryProvider = Provider<TandaRepository>((ref) {
   return TandaRepository(apiClient);
 });
 
+final invitePreviewProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, code) {
+  return ref.watch(tandaRepositoryProvider).previewInvite(code);
+});
+
 final myTandasProvider = FutureProvider.autoDispose<List<TandaModel>>((ref) async {
   final repo = ref.watch(tandaRepositoryProvider);
   return await repo.getMyTandas();
@@ -53,17 +57,43 @@ class TandaCreatorController extends Notifier<AsyncValue<TandaModel?>> {
     }
   }
 
-  Future<void> joinTanda(String inviteCode) async {
+  /// Regresa el id de la tanda para abrir su detalle
+  Future<String> joinTanda(String inviteCode, {List<int> slotNumbers = const []}) async {
     state = const AsyncValue.loading();
     try {
       final repository = ref.read(tandaRepositoryProvider);
-      await repository.joinByInvite(inviteCode);
+      final tanda = await repository.joinByInvite(inviteCode, slotNumbers: slotNumbers);
       state = const AsyncValue.data(null);
       ref.invalidate(myTandasProvider);
+      return tanda['id'] as String;
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
     }
+  }
+
+  Future<void> updateTanda({
+    required String tandaId,
+    required String title,
+    String? description,
+    required double contributionAmount,
+    required int totalSlots,
+    required String frequency,
+    required String assignmentMethod,
+    required DateTime startDate,
+  }) async {
+    final repository = ref.read(tandaRepositoryProvider);
+    await repository.updateTanda(
+      tandaId: tandaId,
+      title: title,
+      description: description,
+      contributionAmount: contributionAmount,
+      totalSlots: totalSlots,
+      frequency: frequency,
+      assignmentMethod: assignmentMethod,
+      startDate: startDate,
+    );
+    ref.invalidate(myTandasProvider);
   }
 }
 

@@ -14,6 +14,7 @@ import '../../../auth/presentation/widgets/biometric_setup.dart';
 import '../../../tanda_creator/data/models/tanda_model.dart';
 import '../../../tanda_creator/presentation/controllers/tanda_controller.dart';
 import '../../../tanda_creator/presentation/screens/create_tanda_screen.dart';
+import '../../../tanda_creator/presentation/screens/join_tanda_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -493,30 +494,17 @@ class HomeScreen extends ConsumerWidget {
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                final code = controller.text.trim();
+              onPressed: () {
+                final code = controller.text.trim().toUpperCase();
                 if (code.isEmpty) return;
-                // Se toma antes del await: el contexto del diálogo deja de existir al cerrarlo
-                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(dialogContext);
-                try {
-                  await ref.read(tandaCreatorControllerProvider.notifier).joinTanda(code);
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('¡Te has unido a la tanda con éxito! 🎉'),
-                      backgroundColor: AppColors.primaryDark,
-                    ),
-                  );
-                } catch (e) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(e.toString().replaceAll('Exception: ', '')),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
+                // Antes de entrar se ve la tanda y, si es de elección libre, se escoge el número
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => JoinTandaScreen(inviteCode: code)),
+                );
               },
-              child: const Text('Unirme'),
+              child: const Text('Continuar'),
             ),
           ],
         );

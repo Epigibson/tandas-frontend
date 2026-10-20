@@ -6,10 +6,14 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
+import '../../data/models/tanda_model.dart';
 import '../controllers/tanda_controller.dart';
 
 class CreateTandaScreen extends ConsumerStatefulWidget {
-  const CreateTandaScreen({super.key});
+  /// Con una tanda, la pantalla la edita en vez de crear una nueva (solo antes de iniciar)
+  final TandaModel? tanda;
+
+  const CreateTandaScreen({super.key, this.tanda});
 
   @override
   ConsumerState<CreateTandaScreen> createState() => _CreateTandaScreenState();
@@ -25,7 +29,10 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
   int _totalSlots = 10;
   String _selectedFrequency = 'quincenal';
   String _selectedAssignment = 'draw';
+  late DateTime _startDate;
   bool _isLoading = false;
+
+  bool get _isEditing => widget.tanda != null;
 
   final List<double> _quickAmounts = [200.0, 300.0, 500.0, 1000.0, 1500.0, 2000.0];
 
@@ -35,6 +42,41 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
     'quincenal': 'Quincenal (días 15 y último de mes)',
     'mensual': 'Mensual (30 días)',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    final today = DateUtils.dateOnly(DateTime.now());
+    final tanda = widget.tanda;
+    if (tanda == null) {
+      _startDate = today;
+      return;
+    }
+    _titleController.text = tanda.title;
+    _descriptionController.text = tanda.description ?? '';
+    _selectedAmount = tanda.contributionAmount;
+    if (!_quickAmounts.contains(tanda.contributionAmount)) {
+      _customAmountController.text = NumberFormat('0.##').format(tanda.contributionAmount);
+    }
+    _totalSlots = tanda.totalSlots.clamp(4, 20);
+    _selectedFrequency = tanda.frequency;
+    _selectedAssignment = tanda.assignmentMethod == 'first_come' ? 'first_come' : 'draw';
+    final saved = tanda.startDate == null ? today : DateUtils.dateOnly(tanda.startDate!.toLocal());
+    // Si la fecha pactada ya pasó, se propone hoy (el backend no acepta fechas pasadas)
+    _startDate = saved.isBefore(today) ? today : saved;
+  }
+
+  Future<void> _pickStartDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 365)),
+      helpText: 'Fecha de inicio de la tanda',
+    );
+    if (picked != null) setState(() => _startDate = picked);
+  }
 
   @override
   void dispose() {
@@ -52,14 +94,41 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
     setState(() => _isLoading = true);
     HapticFeedback.lightImpact();
 
+    // Mediodía local: al pasar a UTC el día no cambia
+    final startDate = DateTime(_startDate.year, _startDate.month, _startDate.day, 12);
+    final controller = ref.read(tandaCreatorControllerProvider.notifier);
     try {
-      final tanda = await ref.read(tandaCreatorControllerProvider.notifier).createTanda(
+      if (_isEditing) {
+        await controller.updateTanda(
+          tandaId: widget.tanda!.id,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          contributionAmount: _selectedAmount,
+          totalSlots: _totalSlots,
+          frequency: _selectedFrequency,
+          assignmentMethod: _selectedAssignment,
+          startDate: startDate,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cambios guardados ✅'),
+              backgroundColor: AppColors.primaryDark,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+        return;
+      }
+
+      final tanda = await controller.createTanda(
             title: _titleController.text.trim(),
             description: _descriptionController.text.trim(),
             contributionAmount: _selectedAmount,
             totalSlots: _totalSlots,
             frequency: _selectedFrequency,
             assignmentMethod: _selectedAssignment,
+            startDate: startDate,
           );
 
       if (mounted) {
@@ -180,7 +249,7 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nueva Tanda'),
+        title: Text(_isEditing ? 'Editar tanda' : 'Nueva Tanda'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -204,24 +273,32 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Bolsa Total a Repartir',
-                              style: TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              currencyFormat.format(_totalPot),
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.gold,
+                        // Con montos grandes o letra grande, la cifra se encoge en vez de desbordarse
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Bolsa Total a Repartir',
+                                style: TextStyle(color: Colors.white70, fontSize: 12),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 4),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  currencyFormat.format(_totalPot),
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.gold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
@@ -350,10 +427,13 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Número de turnos / participantes:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    const Expanded(
+                      child: Text(
+                        'Número de turnos / participantes:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       '$_totalSlots números',
                       style: const TextStyle(
@@ -413,6 +493,37 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                // Fecha de inicio: de aquí salen las fechas de cada turno
+                const Text(
+                  '¿Cuándo empieza?',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const SizedBox(height: 10),
+                Material(
+                  color: AppColors.darkSurface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: AppColors.darkBorder),
+                  ),
+                  child: ListTile(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    leading: const Icon(Icons.event_outlined, color: AppColors.primary),
+                    title: Text(
+                      DateFormat("EEEE d 'de' MMMM 'de' y", 'es_MX').format(_startDate),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      _selectedFrequency == 'quincenal'
+                          ? 'El primer cobro es el primer día 15 o fin de mes desde esta fecha'
+                          : 'El primer turno cobra este día',
+                      style: const TextStyle(fontSize: 12, color: AppColors.darkTextSecondary),
+                    ),
+                    trailing: const Icon(Icons.edit_calendar_outlined, size: 20),
+                    onTap: _pickStartDate,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Método de Asignación de Números
                 const Text(
                   '¿Cómo se asignarán los números?',
@@ -428,7 +539,7 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                 _buildAssignmentOption(
                   id: 'first_come',
                   title: '⚡ Elección Libre',
-                  subtitle: 'Cada quien escoge su número disponible al unirse.',
+                  subtitle: 'Cada quien escoge su número libre antes de entrar a la tanda.',
                 ),
                 const SizedBox(height: 32),
 
@@ -452,8 +563,8 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                             color: AppColors.darkBg,
                           ),
                         )
-                      : const Text(
-                          'Crear Tanda Familiar 🎉',
+                      : Text(
+                          _isEditing ? 'Guardar cambios' : 'Crear Tanda Familiar 🎉',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
