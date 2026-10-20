@@ -25,7 +25,7 @@ class HomeScreen extends ConsumerWidget {
 
     final tandasAsync = ref.watch(myTandasProvider);
     final tandasList = tandasAsync.asData?.value ?? [];
-    final activeTandas = tandasList.where((t) => t.status == 'active' || t.status == 'draft').toList();
+    final activeTandas = tandasList.where((t) => t.status != 'completed' && t.status != 'cancelled').toList();
     final totalSavings = activeTandas.fold<double>(0.0, (acc, t) => acc + t.payoutTotal);
     final nextToPay = activeTandas.fold<double>(0.0, (acc, t) => acc + t.contributionAmount);
     final nextToCollect = activeTandas.isNotEmpty ? activeTandas.first.payoutTotal : 0.0;
