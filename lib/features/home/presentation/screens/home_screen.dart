@@ -16,6 +16,31 @@ import '../../../tanda_creator/presentation/controllers/tanda_controller.dart';
 import '../../../tanda_creator/presentation/screens/create_tanda_screen.dart';
 import '../../../tanda_creator/presentation/screens/join_tanda_screen.dart';
 
+/// Filtro de la lista "Tandas de la Familia"; `all` muestra todas
+class TandaStatusFilter extends Notifier<String> {
+  @override
+  String build() => 'all';
+
+  void select(String filter) => state = filter;
+}
+
+final tandaStatusFilterProvider = NotifierProvider<TandaStatusFilter, String>(TandaStatusFilter.new);
+
+const _statusFilters = [
+  ('all', 'Todas'),
+  ('recruiting', 'Reclutando'),
+  ('active', 'Activas'),
+  ('completed', 'Terminadas'),
+  ('cancelled', 'Canceladas'),
+];
+
+bool _matchesFilter(TandaModel tanda, String filter) {
+  if (filter == 'all') return true;
+  // Un borrador también está juntando gente
+  if (filter == 'recruiting') return tanda.status == 'recruiting' || tanda.status == 'draft';
+  return tanda.status == filter;
+}
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -181,14 +206,17 @@ class HomeScreen extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Bolsas de tus tandas activas',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                          const Expanded(
+                            child: Text(
+                              'Bolsas de tus tandas activas',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
@@ -337,12 +365,14 @@ class HomeScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Tandas de la Familia',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkTextPrimary,
+                    const Expanded(
+                      child: Text(
+                        'Tandas de la Familia',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkTextPrimary,
+                        ),
                       ),
                     ),
                     IconButton(
@@ -357,9 +387,30 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
+            // Filtro por estado: solo aparecen los estados que tienen tandas
+            if (tandasList.isNotEmpty)
+              SliverToBoxAdapter(
+                child: _buildStatusFilter(ref, tandasList),
+              ),
+
             // Lista Dinámica de Tandas desde Supabase Compacta
             ref.watch(myTandasProvider).when(
-                  data: (tandas) {
+                  data: (allTandas) {
+                    final filter = ref.watch(tandaStatusFilterProvider);
+                    final tandas = allTandas.where((t) => _matchesFilter(t, filter)).toList();
+                    if (allTandas.isNotEmpty && tandas.isEmpty) {
+                      final label = _statusFilters.firstWhere((f) => f.$1 == filter).$2.toLowerCase();
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'No tienes tandas $label.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+                          ),
+                        ),
+                      );
+                    }
                     if (tandas.isEmpty) {
                       return SliverToBoxAdapter(
                         child: Padding(
@@ -457,6 +508,40 @@ class HomeScreen extends ConsumerWidget {
   );
   }
 
+  Widget _buildStatusFilter(WidgetRef ref, List<TandaModel> tandas) {
+    final selected = ref.watch(tandaStatusFilterProvider);
+    final chips = <Widget>[];
+    for (final (id, label) in _statusFilters) {
+      final count = tandas.where((t) => _matchesFilter(t, id)).length;
+      if (count == 0 && id != selected) continue;
+      final isSelected = id == selected;
+      chips.add(Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(
+          label: Text('$label ($count)'),
+          selected: isSelected,
+          showCheckmark: false,
+          selectedColor: AppColors.primary,
+          backgroundColor: AppColors.darkSurface,
+          labelStyle: TextStyle(
+            color: isSelected ? AppColors.darkBg : AppColors.darkTextPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+          onSelected: (_) {
+            HapticFeedback.selectionClick();
+            ref.read(tandaStatusFilterProvider.notifier).select(id);
+          },
+        ),
+      ));
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Row(children: chips),
+    );
+  }
+
   void _showJoinDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
 
@@ -531,11 +616,17 @@ class HomeScreen extends ConsumerWidget {
         children: [
           Icon(icon, color: color, size: 17),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+          // Con letra grande el texto se encoge en vez de desbordar el botón
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
             ),
           ),
         ],
