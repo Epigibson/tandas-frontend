@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
@@ -16,8 +17,8 @@ class CreateTandaScreen extends ConsumerStatefulWidget {
 
 class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController(text: 'Tanda Familiar 2026');
-  final _descriptionController = TextEditingController(text: 'Ahorro para vacaciones y regalos');
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final _customAmountController = TextEditingController();
 
   double _selectedAmount = 200.0;
@@ -31,7 +32,7 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
   final Map<String, String> _frequencyLabels = {
     'semanal': 'Semanal (7 días)',
     'catorcenal': 'Catorcenal (14 días)',
-    'quincenal': 'Quincenal (Días 15 y 30)',
+    'quincenal': 'Quincenal (días 15 y último de mes)',
     'mensual': 'Mensual (30 días)',
   };
 
@@ -146,21 +147,25 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.share_outlined),
-                label: const Text('Copiar Mensaje para WhatsApp'),
+                label: const Text('Compartir invitación'),
                 onPressed: () {
                   HapticFeedback.selectionClick();
                   final msg =
-                      '¡Hola familia! Cree la tanda "$title" con bolsa de ${currencyFormat.format(pot)} MXN. Únanse en la app con el código: $inviteCode 📱🎉';
-                  Clipboard.setData(ClipboardData(text: msg));
+                      '¡Hola familia! Creé la tanda "$title" con bolsa de ${currencyFormat.format(pot)} MXN. Únanse en la app con el código: $inviteCode 📱🎉';
                   Navigator.pop(context); // Cierra diálogo
                   Navigator.pop(context); // Regresa al Home
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Mensaje copiado. ¡Pégalo en tu WhatsApp! 💬'),
-                      backgroundColor: AppColors.primaryDark,
-                    ),
-                  );
+                  SharePlus.instance.share(ShareParams(text: msg, subject: 'Invitación a la tanda "$title"'));
                 },
+              ),
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Cierra diálogo
+                  Navigator.pop(context); // Regresa al Home
+                },
+                child: const Text('Compartir después'),
               ),
             ),
           ],
@@ -301,6 +306,7 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                       onSelected: (val) {
                         if (val) {
                           HapticFeedback.selectionClick();
+                          _customAmountController.clear();
                           setState(() => _selectedAmount = amt);
                         }
                       },
@@ -323,6 +329,14 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                       borderSide: const BorderSide(color: AppColors.darkBorder),
                     ),
                   ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) return null;
+                    final parsed = double.tryParse(val.replaceAll(RegExp(r'[^0-9.]'), ''));
+                    if (parsed == null || parsed < 200) {
+                      return 'El monto mínimo es \$200';
+                    }
+                    return null;
+                  },
                   onChanged: (val) {
                     final parsed = double.tryParse(val.replaceAll(RegExp(r'[^0-9.]'), ''));
                     if (parsed != null && parsed >= 200) {

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_error.dart';
 import '../models/tanda_model.dart';
 
 class TandaRepository {
@@ -36,7 +37,7 @@ class TandaRepository {
       );
       return TandaModel.fromJson(response.data);
     } on DioException catch (e) {
-      final message = e.response?.data?['detail'] ?? 'Error al crear la tanda';
+      final message = apiErrorMessage(e, 'Error al crear la tanda');
       throw Exception(message);
     }
   }
@@ -47,7 +48,7 @@ class TandaRepository {
       final list = response.data as List<dynamic>;
       return list.map((item) => TandaModel.fromJson(item as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
-      final message = e.response?.data?['detail'] ?? 'Error al obtener tus tandas';
+      final message = apiErrorMessage(e, 'Error al obtener tus tandas');
       throw Exception(message);
     }
   }
@@ -57,7 +58,7 @@ class TandaRepository {
       final response = await _apiClient.dio.get('/tandas/$tandaId');
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
-      final message = e.response?.data?['detail'] ?? 'Error al cargar detalles';
+      final message = apiErrorMessage(e, 'Error al cargar detalles');
       throw Exception(message);
     }
   }
@@ -67,7 +68,7 @@ class TandaRepository {
       final response = await _apiClient.dio.post('/tandas/join/${inviteCode.trim()}');
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
-      final message = e.response?.data?['detail'] ?? 'Código inválido o tanda llena';
+      final message = apiErrorMessage(e, 'Código inválido o tanda llena');
       throw Exception(message);
     }
   }
@@ -77,7 +78,7 @@ class TandaRepository {
       final response = await _apiClient.dio.post('/tandas/$tandaId/draw');
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
-      final message = e.response?.data?['detail'] ?? 'Error al ejecutar el sorteo';
+      final message = apiErrorMessage(e, 'Error al ejecutar el sorteo');
       throw Exception(message);
     }
   }

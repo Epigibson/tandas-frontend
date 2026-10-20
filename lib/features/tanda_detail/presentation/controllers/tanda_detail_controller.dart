@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tanda_app/core/network/api_error.dart';
 import 'package:tanda_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:tanda_app/features/tanda_creator/presentation/controllers/tanda_controller.dart';
 
@@ -10,14 +11,27 @@ final tandaDetailProvider = FutureProvider.family.autoDispose<Map<String, dynami
 
 final tandaPaymentsProvider = FutureProvider.family.autoDispose<List<dynamic>, String>((ref, tandaId) async {
   final apiClient = ref.watch(apiClientProvider);
-  final response = await apiClient.dio.get('/payments/tanda/$tandaId');
-  return response.data as List<dynamic>;
+  try {
+    final response = await apiClient.dio.get('/payments/tanda/$tandaId');
+    return response.data as List<dynamic>;
+  } on DioException catch (e) {
+    throw Exception(apiErrorMessage(e, 'Error al cargar las aportaciones'));
+  }
 });
 
 class TandaDetailActions {
   final Ref _ref;
 
   TandaDetailActions(this._ref);
+
+  /// Ejecuta una llamada al API y traduce los errores de red a mensajes legibles
+  Future<T> _guard<T>(String fallback, Future<T> Function() action) async {
+    try {
+      return await action();
+    } on DioException catch (e) {
+      throw Exception(apiErrorMessage(e, fallback));
+    }
+  }
 
   Future<void> submitPaymentProof({
     required String roundId,
@@ -26,18 +40,24 @@ class TandaDetailActions {
   }) async {
     final apiClient = _ref.read(apiClientProvider);
 
-    // 1. Subir archivo
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath),
-    });
-    final uploadRes = await apiClient.dio.post('/upload/receipt', data: formData);
-    final fileUrl = uploadRes.data['url'] as String;
+    await _guard('Error al subir el comprobante', () async {
+      // 1. Subir archivo
+      final formData = FormData.fromMap({
+        // Sin contentType Dio manda application/octet-stream y el backend lo rechaza
+        'file': await MultipartFile.fromFile(
+          filePath,
+          contentType: MultipartFile.lookupMediaType(filePath) ?? DioMediaType('image', 'jpeg'),
+        ),
+      });
+      final uploadRes = await apiClient.dio.post('/upload/receipt', data: formData);
+      final fileUrl = uploadRes.data['url'] as String;
 
-    // 2. Registrar pago
-    await apiClient.dio.post(
-      '/payments/round/$roundId/submit',
-      data: {'proof_image_url': fileUrl},
-    );
+      // 2. Registrar pago
+      await apiClient.dio.post(
+        '/payments/round/$roundId/submit',
+        data: {'proof_image_url': fileUrl},
+      );
+    });
 
     // 3. Invalidar providers para refrescar la pantalla
     _ref.invalidate(tandaDetailProvider(tandaId));
@@ -51,12 +71,15 @@ class TandaDetailActions {
     required String tandaId,
   }) async {
     final apiClient = _ref.read(apiClientProvider);
-    await apiClient.dio.post(
-      '/payments/$paymentId/review',
-      data: {
-        'approved': approved,
-        'rejection_reason': ?rejectionReason,
-      },
+    await _guard(
+      'Error al revisar el pago',
+      () => apiClient.dio.post(
+        '/payments/$paymentId/review',
+        data: {
+          'approved': approved,
+          'rejection_reason': ?rejectionReason,
+        },
+      ),
     );
 
     _ref.invalidate(tandaDetailProvider(tandaId));
@@ -68,9 +91,10 @@ class TandaDetailActions {
     required String tandaId,
   }) async {
     final apiClient = _ref.read(apiClientProvider);
-    await apiClient.dio.post('/slots/$slotId/confirm-payout');
+    await _guard('Error al confirmar la entrega', () => apiClient.dio.post('/slots/$slotId/confirm-payout'));
 
     _ref.invalidate(tandaDetailProvider(tandaId));
+    _ref.invalidate(myTandasProvider);
   }
 
   Future<void> claimSlot({
@@ -78,7 +102,7 @@ class TandaDetailActions {
     required String tandaId,
   }) async {
     final apiClient = _ref.read(apiClientProvider);
-    await apiClient.dio.post('/slots/$slotId/claim');
+    await _guard('No se pudo apartar el turno', () => apiClient.dio.post('/slots/$slotId/claim'));
 
     _ref.invalidate(tandaDetailProvider(tandaId));
     _ref.invalidate(myTandasProvider);
@@ -89,7 +113,17 @@ class TandaDetailActions {
     required String tandaId,
   }) async {
     final apiClient = _ref.read(apiClientProvider);
-    await apiClient.dio.post('/slots/$slotId/release');
+    await _guard('No se pudo liberar el turno', () => apiClient.dio.post('/slots/$slotId/release'));
+
+    _ref.invalidate(tandaDetailProvider(tandaId));
+    _ref.invalidate(myTandasProvider);
+  }
+
+  Future<void> startTanda({
+    required String tandaId,
+  }) async {
+    final apiClient = _ref.read(apiClientProvider);
+    await _guard('No se pudo iniciar la tanda', () => apiClient.dio.post('/tandas/$tandaId/start'));
 
     _ref.invalidate(tandaDetailProvider(tandaId));
     _ref.invalidate(myTandasProvider);

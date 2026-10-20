@@ -1,13 +1,18 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_error.dart';
 import '../models/user_model.dart';
 
 class AuthRepository {
   final ApiClient _apiClient;
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'cached_user';
+
+  // El token va en Keychain/Keystore; el usuario cacheado no es secreto y se queda en prefs
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   AuthRepository(this._apiClient);
 
@@ -16,8 +21,6 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      // ignore: avoid_print
-      print('DEBUG AUTH: Attempting login for ${phoneOrEmail.trim()}');
       final response = await _apiClient.dio.post(
         '/auth/login',
         data: {
@@ -26,30 +29,16 @@ class AuthRepository {
         },
         options: Options(contentType: Headers.formUrlEncodedContentType),
       );
-      // ignore: avoid_print
-      print('DEBUG AUTH: Response status ${response.statusCode}');
-      // ignore: avoid_print
-      print('DEBUG AUTH: Response data ${response.data}');
 
       final token = response.data['access_token'] as String;
       final userData = response.data['user'] as Map<String, dynamic>;
       final user = UserModel.fromJson(userData);
 
       await _persistAuth(token, user);
-      // ignore: avoid_print
-      print('DEBUG AUTH: User persisted successfully: ${user.fullName}');
       return user;
     } on DioException catch (e) {
-      // ignore: avoid_print
-      print('DEBUG AUTH: DioException $e');
-      // ignore: avoid_print
-      print('DEBUG AUTH: DioException response: ${e.response?.data}');
-      final message = e.response?.data?['detail'] ?? 'Error de conexión con el servidor (${e.message})';
+      final message = apiErrorMessage(e, 'Error de conexión con el servidor');
       throw Exception(message);
-    } catch (e, st) {
-      // ignore: avoid_print
-      print('DEBUG AUTH: Unexpected error: $e\n$st');
-      rethrow;
     }
   }
 
@@ -81,15 +70,23 @@ class AuthRepository {
       await _persistAuth(token, user);
       return user;
     } on DioException catch (e) {
-      final message = e.response?.data?['detail'] ?? 'Error al registrar usuario';
+      final message = apiErrorMessage(e, 'Error al registrar usuario');
       throw Exception(message);
     }
   }
 
   Future<UserModel?> getCachedUser() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(_tokenKey);
+    var token = await _secureStorage.read(key: _tokenKey);
     final userJson = prefs.getString(_userKey);
+
+    // Migra tokens guardados en texto plano por versiones anteriores
+    final legacyToken = prefs.getString(_tokenKey);
+    if (legacyToken != null) {
+      token ??= legacyToken;
+      await _secureStorage.write(key: _tokenKey, value: token);
+      await prefs.remove(_tokenKey);
+    }
 
     if (token != null && userJson != null) {
       _apiClient.updateToken(token);
@@ -116,6 +113,7 @@ class AuthRepository {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+    await _secureStorage.delete(key: _tokenKey);
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
     _apiClient.clearToken();
@@ -123,7 +121,7 @@ class AuthRepository {
 
   Future<void> _persistAuth(String token, UserModel user) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
+    await _secureStorage.write(key: _tokenKey, value: token);
     await prefs.setString(_userKey, jsonEncode(user.toJson()));
     _apiClient.updateToken(token);
   }

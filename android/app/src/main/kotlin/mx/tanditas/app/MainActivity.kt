@@ -1,4 +1,4 @@
-package com.tandaapp.tanda_app
+package mx.tanditas.app
 
 import io.flutter.embedding.android.FlutterActivity
 

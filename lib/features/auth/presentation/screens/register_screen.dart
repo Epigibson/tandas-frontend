@@ -5,7 +5,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 import '../controllers/auth_controller.dart';
-import '../../../home/presentation/screens/home_screen.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -59,10 +58,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             backgroundColor: AppColors.primaryDark,
           ),
         );
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-          (route) => false,
-        );
+        // Al regresar, AuthGate ya muestra HomeScreen porque detectó al usuario
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
@@ -136,6 +133,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
                   decoration: _buildInputDecoration(
                     label: 'Teléfono Móvil (10 dígitos)',
                     hint: '5512345678',
@@ -145,8 +146,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     if (val == null || val.trim().isEmpty) {
                       return 'Por favor escribe tu número';
                     }
-                    if (val.trim().length < 10) {
-                      return 'El número debe tener al menos 10 dígitos';
+                    if (val.trim().length != 10) {
+                      return 'El número debe tener 10 dígitos';
                     }
                     return null;
                   },
@@ -162,6 +163,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     hint: 'ejemplo@correo.com',
                     icon: Icons.alternate_email_outlined,
                   ),
+                  validator: (val) {
+                    final email = val?.trim() ?? '';
+                    if (email.isNotEmpty && !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+                      return 'Revisa el formato del correo';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -221,6 +229,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         controller: _clabeController,
                         keyboardType: TextInputType.number,
                         maxLength: 18,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        validator: (val) {
+                          final clabe = val?.trim() ?? '';
+                          if (clabe.isEmpty) return null;
+                          if (clabe.length != 18) return 'La CLABE debe tener 18 dígitos';
+                          if (!_isValidClabe(clabe)) return 'La CLABE no es válida, revísala';
+                          return null;
+                        },
                         decoration: _buildInputDecoration(
                           label: 'CLABE Interbancaria (18 dígitos)',
                           hint: '012180012345678901',
@@ -278,6 +294,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
     ),
   );
+  }
+
+  /// Dígito verificador de la CLABE: pesos 3-7-1 sobre los primeros 17 dígitos
+  bool _isValidClabe(String clabe) {
+    const weights = [3, 7, 1];
+    var sum = 0;
+    for (var i = 0; i < 17; i++) {
+      sum += (int.parse(clabe[i]) * weights[i % 3]) % 10;
+    }
+    final checkDigit = (10 - sum % 10) % 10;
+    return checkDigit == int.parse(clabe[17]);
   }
 
   InputDecoration _buildInputDecoration({

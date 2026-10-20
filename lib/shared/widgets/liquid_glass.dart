@@ -65,9 +65,8 @@ class LiquidGlassContainer extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
+        child: _maybeBlur(
+          Container(
             padding: padding,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(borderRadius),
@@ -103,6 +102,16 @@ class LiquidGlassContainer extends StatelessWidget {
     }
 
     return content;
+  }
+
+  /// Con blur 0 se omite el BackdropFilter: en listas largas cada filtro es una
+  /// capa extra de composición y tumba los FPS en teléfonos de gama baja.
+  Widget _maybeBlur(Widget child) {
+    if (blur <= 0) return child;
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+      child: child,
+    );
   }
 }
 

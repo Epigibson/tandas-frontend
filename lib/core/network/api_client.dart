@@ -6,12 +6,16 @@ class ApiClient {
 
   final Dio _dio;
 
+  /// Se invoca cuando el servidor rechaza el token (sesión expirada o revocada)
+  void Function()? onUnauthorized;
+
   ApiClient({String? authToken})
       : _dio = Dio(
           BaseOptions(
             baseUrl: baseUrl,
-            connectTimeout: const Duration(seconds: 15),
-            receiveTimeout: const Duration(seconds: 15),
+            // Render (plan gratuito) tarda hasta ~60 s en despertar el servidor
+            connectTimeout: const Duration(seconds: 30),
+            receiveTimeout: const Duration(seconds: 60),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
@@ -32,6 +36,15 @@ class ApiClient {
           }
           return handler.next(options);
         },
+        onError: (error, handler) {
+          // Un 401 en login significa credenciales incorrectas, no sesión expirada
+          final hadToken = error.requestOptions.headers.containsKey('Authorization');
+          final isLogin = error.requestOptions.path.endsWith('/auth/login');
+          if (error.response?.statusCode == 401 && hadToken && !isLogin) {
+            onUnauthorized?.call();
+          }
+          return handler.next(error);
+        },
       ),
     );
 
@@ -50,14 +63,21 @@ class ApiClient {
 
   Dio get dio => _dio;
 
-  /// Pre-calienta el socket TLS y la conexión HTTP en segundo plano
+  /// Los comprobantes llegan como ruta relativa (/uploads/...) o como URL completa
+  static String resolveFileUrl(String pathOrUrl) {
+    if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) return pathOrUrl;
+    return '$baseUrl${pathOrUrl.startsWith('/') ? '' : '/'}$pathOrUrl';
+  }
+
+  /// Despierta el servidor y pre-calienta la conexión TLS en segundo plano.
+  /// No se espera desde la UI, así que puede tardar lo que tarde Render en arrancar.
   Future<void> prewarmConnection() async {
     try {
       await _dio.get(
         '/ping',
         options: Options(
-          sendTimeout: const Duration(seconds: 3),
-          receiveTimeout: const Duration(seconds: 3),
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 60),
         ),
       );
     } catch (_) {

@@ -16,6 +16,11 @@ class TandaModel {
   final DateTime? startDate;
   final DateTime createdAt;
 
+  // Solo vienen en el listado (GET /tandas): avance y turnos del usuario actual
+  final int? currentRoundNumber;
+  final List<int> mySlotNumbers;
+  final DateTime? myNextPayoutDate;
+
   TandaModel({
     required this.id,
     required this.title,
@@ -33,6 +38,9 @@ class TandaModel {
     required this.inviteCode,
     this.startDate,
     required this.createdAt,
+    this.currentRoundNumber,
+    this.mySlotNumbers = const [],
+    this.myNextPayoutDate,
   });
 
   factory TandaModel.fromJson(Map<String, dynamic> json) {
@@ -53,6 +61,13 @@ class TandaModel {
       inviteCode: json['invite_code'] as String,
       startDate: json['start_date'] != null ? DateTime.parse(json['start_date']) : null,
       createdAt: DateTime.parse(json['created_at']),
+      currentRoundNumber: (json['current_round_number'] as num?)?.toInt(),
+      mySlotNumbers: (json['my_slot_numbers'] as List<dynamic>? ?? [])
+          .map((n) => (n as num).toInt())
+          .toList(),
+      myNextPayoutDate: json['my_next_payout_date'] != null
+          ? DateTime.parse(json['my_next_payout_date'])
+          : null,
     );
   }
 }

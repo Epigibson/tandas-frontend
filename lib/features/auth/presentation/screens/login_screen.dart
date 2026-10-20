@@ -6,7 +6,6 @@ import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 import '../controllers/auth_controller.dart';
 import 'register_screen.dart';
-import '../../../home/presentation/screens/home_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -45,14 +44,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     HapticFeedback.lightImpact();
 
     try {
-      // ignore: avoid_print
-      print('LOGIN_SCREEN: Starting login...');
       await ref.read(authControllerProvider.notifier).login(
             phoneOrEmail: _phoneOrEmailController.text.trim(),
             password: _passwordController.text,
           );
-      // ignore: avoid_print
-      print('LOGIN_SCREEN: Login completed successfully');
+      // AuthGate cambia a HomeScreen al detectar el usuario; así el logout regresa al login
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -60,14 +56,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             backgroundColor: AppColors.primaryDark,
           ),
         );
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-          (route) => false,
-        );
       }
-    } catch (e, st) {
-      // ignore: avoid_print
-      print('LOGIN_SCREEN: Error caught: $e\n$st');
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

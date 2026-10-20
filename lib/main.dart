@@ -8,6 +8,8 @@ import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'features/splash/presentation/screens/splash_screen.dart';
+import 'features/tanda_creator/presentation/controllers/tanda_controller.dart';
+import 'features/tanda_detail/presentation/controllers/tanda_detail_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,8 +21,32 @@ void main() async {
   );
 }
 
-class TandaApp extends StatelessWidget {
+class TandaApp extends ConsumerStatefulWidget {
   const TandaApp({super.key});
+
+  @override
+  ConsumerState<TandaApp> createState() => _TandaAppState();
+}
+
+class _TandaAppState extends ConsumerState<TandaApp> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    // Con la app en segundo plano el socket de Realtime se pierde avisos: al volver se recarga todo
+    _lifecycleListener = AppLifecycleListener(onResume: () {
+      ref.invalidate(myTandasProvider);
+      ref.invalidate(tandaDetailProvider);
+      ref.invalidate(tandaPaymentsProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +67,13 @@ class AuthGate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
+
+    // Al cerrar sesión (manual o por token expirado) se descartan las pantallas abiertas encima
+    ref.listen(authControllerProvider, (previous, next) {
+      if (previous?.value != null && next.hasValue && next.value == null) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    });
 
     return authState.when(
       data: (user) {

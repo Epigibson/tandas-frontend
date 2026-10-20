@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/realtime/tanda_realtime.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
@@ -10,6 +11,7 @@ import '../../../tanda_detail/presentation/screens/tanda_detail_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
+import '../../../tanda_creator/data/models/tanda_model.dart';
 import '../../../tanda_creator/presentation/controllers/tanda_controller.dart';
 import '../../../tanda_creator/presentation/screens/create_tanda_screen.dart';
 
@@ -27,15 +29,32 @@ class HomeScreen extends ConsumerWidget {
     final tandasAsync = ref.watch(myTandasProvider);
     final tandasList = tandasAsync.asData?.value ?? [];
     final activeTandas = tandasList.where((t) => t.status != 'completed' && t.status != 'cancelled').toList();
-    final totalSavings = activeTandas.fold<double>(0.0, (acc, t) => acc + t.payoutTotal);
-    final nextToPay = activeTandas.fold<double>(0.0, (acc, t) => acc + t.contributionAmount);
-    final nextToCollect = activeTandas.isNotEmpty ? activeTandas.first.payoutTotal : 0.0;
+    final totalPots = activeTandas.fold<double>(0.0, (acc, t) => acc + t.payoutTotal);
+    // Se aporta una cuota por cada número que tengas en la tanda
+    final contributionPerRound = activeTandas.fold<double>(
+      0.0,
+      (acc, t) => acc + t.contributionAmount * t.mySlotNumbers.length,
+    );
     final tandasCount = activeTandas.length;
+    final upcomingPayouts = activeTandas.where((t) => t.myNextPayoutDate != null).toList()
+      ..sort((a, b) => a.myNextPayoutDate!.compareTo(b.myNextPayoutDate!));
+    final nextPayout = upcomingPayouts.isNotEmpty ? upcomingPayouts.first : null;
+
+    // Escucha en vivo las tandas de la lista: cualquier cambio recarga el Home
+    for (final tanda in tandasList) {
+      ref.watch(tandaRealtimeProvider(tanda.id));
+    }
 
     return Scaffold(
       body: LiquidGlassBackground(
         child: SafeArea(
+          child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.darkSurface,
+          onRefresh: () => ref.refresh(myTandasProvider.future),
           child: CustomScrollView(
+          // Permite jalar para refrescar aunque la lista sea corta
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // AppBar personalizado compacto
             SliverToBoxAdapter(
@@ -161,7 +180,7 @@ class HomeScreen extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Total en Tandas Activas',
+                            'Bolsas de tus tandas activas',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
@@ -183,7 +202,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        currencyFormat.format(totalSavings),
+                        currencyFormat.format(totalPots),
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -201,12 +220,12 @@ class HomeScreen extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Próximo a pagar',
+                                  'Aportas por ronda',
                                   style: TextStyle(color: Colors.white60, fontSize: 11),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  currencyFormat.format(nextToPay),
+                                  currencyFormat.format(contributionPerRound),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -215,7 +234,7 @@ class HomeScreen extends ConsumerWidget {
                                 ),
                                 Text(
                                   activeTandas.isNotEmpty
-                                      ? activeTandas.first.frequency.toUpperCase()
+                                      ? 'Sumando todas tus tandas'
                                       : 'Sin pagos pendientes',
                                   style: TextStyle(
                                     color: activeTandas.isNotEmpty ? AppColors.primary : Colors.white38,
@@ -239,7 +258,7 @@ class HomeScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  currencyFormat.format(nextToCollect),
+                                  currencyFormat.format(nextPayout?.payoutTotal ?? 0),
                                   style: const TextStyle(
                                     color: AppColors.gold,
                                     fontWeight: FontWeight.bold,
@@ -247,9 +266,11 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                 ),
                                 Text(
-                                  activeTandas.isNotEmpty ? activeTandas.first.title : 'Sin cobros pendientes',
+                                  nextPayout != null
+                                      ? '${nextPayout.title} · ${DateFormat('d MMM', 'es_MX').format(nextPayout.myNextPayoutDate!.toLocal())}'
+                                      : 'Sin cobros pendientes',
                                   style: TextStyle(
-                                    color: activeTandas.isNotEmpty ? AppColors.gold : Colors.white38,
+                                    color: nextPayout != null ? AppColors.gold : Colors.white38,
                                     fontSize: 10,
                                   ),
                                   maxLines: 1,
@@ -392,12 +413,7 @@ class HomeScreen extends ConsumerWidget {
                           final isOrganizer = currentUser?.id == tanda.organizerId;
 
                           return _buildTandaCard(
-                            context: context,
-                            title: tanda.title,
-                            frequency: '${tanda.frequency.toUpperCase()} • \$${tanda.contributionAmount.toStringAsFixed(0)} MXN',
-                            currentSlot: 1,
-                            totalSlots: tanda.totalSlots,
-                            potAmount: tanda.payoutTotal,
+                            tanda: tanda,
                             isOrganizer: isOrganizer,
                             onTap: () {
                               HapticFeedback.selectionClick();
@@ -425,12 +441,13 @@ class HomeScreen extends ConsumerWidget {
                   error: (err, _) => SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(20),
-                      child: Text('Error al cargar tandas: $err'),
+                      child: Text(err.toString().replaceAll('Exception: ', '')),
                     ),
                   ),
                 ),
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ],
+        ),
         ),
       ),
     ),
@@ -442,7 +459,7 @@ class HomeScreen extends ConsumerWidget {
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: AppColors.darkSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -470,33 +487,31 @@ class HomeScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
               onPressed: () async {
                 final code = controller.text.trim();
                 if (code.isEmpty) return;
-                Navigator.pop(context);
+                // Se toma antes del await: el contexto del diálogo deja de existir al cerrarlo
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(dialogContext);
                 try {
                   await ref.read(tandaCreatorControllerProvider.notifier).joinTanda(code);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('¡Te has unido a la tanda con éxito! 🎉'),
-                        backgroundColor: AppColors.primaryDark,
-                      ),
-                    );
-                  }
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('¡Te has unido a la tanda con éxito! 🎉'),
+                      backgroundColor: AppColors.primaryDark,
+                    ),
+                  );
                 } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(e.toString().replaceAll('Exception: ', '')),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString().replaceAll('Exception: ', '')),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
                 }
               },
               child: const Text('Unirme'),
@@ -539,17 +554,23 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildTandaCard({
-    required BuildContext context,
-    required String title,
-    required String frequency,
-    required int currentSlot,
-    required int totalSlots,
-    required double potAmount,
+    required TandaModel tanda,
     required bool isOrganizer,
     required VoidCallback onTap,
   }) {
     final currencyFormat = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
-    final progress = currentSlot / totalSlots;
+    final totalSlots = tanda.totalSlots;
+    final currentRound = tanda.currentRoundNumber;
+    final isRunning = tanda.status == 'active' && currentRound != null;
+    final statusLabel = switch (tanda.status) {
+      'draft' || 'recruiting' => 'Reuniendo participantes · $totalSlots lugares',
+      'active' => currentRound != null ? 'Turno actual: $currentRound de $totalSlots' : 'En curso',
+      'completed' => 'Terminada',
+      'cancelled' => 'Cancelada',
+      _ => '$totalSlots turnos',
+    };
+    final frequency = '${tanda.frequency.toUpperCase()} • ${currencyFormat.format(tanda.contributionAmount)} MXN';
+    final myNumbers = tanda.mySlotNumbers.map((n) => '#$n').join(', ');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -557,6 +578,7 @@ class HomeScreen extends ConsumerWidget {
         onTap: onTap,
         padding: const EdgeInsets.all(14),
         borderRadius: 16,
+        blur: 0, // Se repite en la lista: sin BackdropFilter por rendimiento
         opacity: 0.07,
         borderOpacity: 0.2,
         child: Column(
@@ -567,7 +589,7 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: Text(
-                    title,
+                    tanda.title,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -595,22 +617,27 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              frequency,
+              myNumbers.isNotEmpty ? '$frequency • Tus números: $myNumbers' : frequency,
               style: const TextStyle(
                 color: AppColors.darkTextSecondary,
                 fontSize: 12,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Turno actual: $currentSlot de $totalSlots',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                Flexible(
+                  child: Text(
+                    statusLabel,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 Text(
-                  'Bolsa: ${currencyFormat.format(potAmount)}',
+                  'Bolsa: ${currencyFormat.format(tanda.payoutTotal)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppColors.gold,
@@ -619,16 +646,18 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                backgroundColor: AppColors.darkSurface,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                minHeight: 4,
+            if (isRunning) ...[
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: currentRound / totalSlots,
+                  backgroundColor: AppColors.darkSurface,
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  minHeight: 4,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

@@ -11,11 +11,13 @@ class SlotItemData {
   final String userName;
   final String? userId;
   final String? avatarUrl;
-  final DateTime dueDate;
+  final DateTime? dueDate;
   final double amount;
   final bool isCompleted;
   final bool isCurrent;
   final bool isAvailable;
+  // Su ronda ya juntó todo y la bolsa espera a que el beneficiario confirme
+  final bool isPayoutReady;
 
   const SlotItemData({
     required this.slotId,
@@ -23,11 +25,12 @@ class SlotItemData {
     required this.userName,
     this.userId,
     this.avatarUrl,
-    required this.dueDate,
+    this.dueDate,
     required this.amount,
     this.isCompleted = false,
     this.isCurrent = false,
     this.isAvailable = false,
+    this.isPayoutReady = false,
   });
 }
 
@@ -88,7 +91,7 @@ class TandaJourneyTimeline extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(12),
                 borderRadius: 16,
-                blur: slot.isCurrent ? 16 : 12,
+                blur: 0, // Se repite por cada turno: sin BackdropFilter por rendimiento
                 tintColor: slot.isCurrent
                     ? AppColors.gold
                     : (slot.isCompleted ? AppColors.primary : null),
@@ -109,7 +112,7 @@ class TandaJourneyTimeline extends StatelessWidget {
                                 ? AppColors.primary.withValues(alpha: 0.2)
                                 : AppColors.darkBorder),
                         child: Text(
-                          slot.isAvailable ? '?' : slot.userName.substring(0, 1).toUpperCase(),
+                          slot.isAvailable || slot.userName.isEmpty ? '?' : slot.userName.substring(0, 1).toUpperCase(),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
@@ -187,7 +190,7 @@ class TandaJourneyTimeline extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            dateFormat.format(slot.dueDate),
+                            slot.dueDate != null ? dateFormat.format(slot.dueDate!) : 'Por definir',
                             style: const TextStyle(
                               fontSize: 11,
                               color: AppColors.darkTextSecondary,

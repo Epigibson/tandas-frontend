@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.tandaapp" "\0"
+            VALUE "CompanyName", "mx.tanditas" "\0"
             VALUE "FileDescription", "tanda_app" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "tanda_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.tandaapp. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 mx.tanditas. All rights reserved." "\0"
             VALUE "OriginalFilename", "tanda_app.exe" "\0"
             VALUE "ProductName", "tanda_app" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

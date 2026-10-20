@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/realtime/tanda_realtime.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
@@ -23,6 +27,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isUploading = false;
+  bool _isStarting = false;
+  final Set<String> _reviewingPayments = {};
 
   @override
   void initState() {
@@ -40,7 +46,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
 
-    if (pickedFile == null) return;
+    if (pickedFile == null || !mounted) return;
 
     setState(() => _isUploading = true);
     HapticFeedback.lightImpact();
@@ -53,7 +59,6 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
           );
 
       if (mounted) {
-        Navigator.pop(context); // Cierra bottomsheet si estaba abierto
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('¡Comprobante subido! En espera de validación del organizador ⏱️'),
@@ -65,7 +70,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al subir: $e'),
+            content: Text(e.toString().replaceAll('Exception: ', '')),
             backgroundColor: AppColors.error,
           ),
         );
@@ -78,6 +83,30 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
   }
 
   Future<void> _handleTriggerDraw() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('¿Ejecutar el sorteo?'),
+        content: const Text(
+          'Se asignarán los turnos de forma aleatoria. Esta acción no se puede deshacer.',
+          style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sortear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     HapticFeedback.heavyImpact();
     try {
       await ref.read(tandaDetailActionsProvider).triggerDraw(tandaId: widget.tandaId);
@@ -93,7 +122,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error en el sorteo: $e'),
+            content: Text(e.toString().replaceAll('Exception: ', '')),
             backgroundColor: AppColors.error,
           ),
         );
@@ -101,9 +130,277 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     }
   }
 
+  Future<void> _handleReviewPayment({
+    required String paymentId,
+    required bool approved,
+  }) async {
+    String? rejectionReason;
+    if (!approved) {
+      rejectionReason = await _askRejectionReason();
+      if (rejectionReason == null || !mounted) return;
+    }
+
+    setState(() => _reviewingPayments.add(paymentId));
+    try {
+      await ref.read(tandaDetailActionsProvider).reviewPayment(
+            paymentId: paymentId,
+            approved: approved,
+            rejectionReason: rejectionReason,
+            tandaId: widget.tandaId,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(approved ? 'Aportación aprobada ✅' : 'Aportación rechazada'),
+            backgroundColor: approved ? AppColors.primaryDark : AppColors.darkCard,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _reviewingPayments.remove(paymentId));
+      }
+    }
+  }
+
+  Future<void> _openProof(String proofPath) async {
+    final url = ApiClient.resolveFileUrl(proofPath);
+
+    // Las URLs firmadas de Storage traen ?token=..., por eso se revisa solo la ruta
+    if (Uri.parse(url).path.toLowerCase().endsWith('.pdf')) {
+      final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo abrir el PDF'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                maxScale: 5,
+                child: Center(
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, progress) => progress == null
+                        ? child
+                        : const CircularProgressIndicator(color: AppColors.primary),
+                    errorBuilder: (context, error, stackTrace) => const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'No se pudo cargar el comprobante. Puede que se haya borrado del servidor.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  tooltip: 'Cerrar',
+                  onPressed: () => Navigator.pop(dialogContext),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecruitingBanner({required bool isOrganizer, required int emptySlotsCount}) {
+    final isFull = emptySlotsCount == 0;
+    final message = isOrganizer
+        ? (isFull
+            ? '¡Ya están todos los lugares! Cuando quieras, inicia la tanda para abrir la primera ronda.'
+            : 'Faltan $emptySlotsCount ${emptySlotsCount == 1 ? 'lugar' : 'lugares'} por apartar. Comparte el código para llenarlos.')
+        : (isFull
+            ? 'Todos los lugares están apartados. Esperando a que el organizador inicie la tanda.'
+            : 'Reuniendo participantes: faltan $emptySlotsCount ${emptySlotsCount == 1 ? 'lugar' : 'lugares'}.');
+
+    return LiquidGlassContainer(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      borderRadius: 12,
+      blur: 0,
+      tintColor: AppColors.gold,
+      opacity: 0.08,
+      borderOpacity: 0.3,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(message, style: const TextStyle(fontSize: 12, color: AppColors.darkTextPrimary)),
+          if (isOrganizer && isFull) ...[
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              icon: _isStarting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.darkBg),
+                    )
+                  : const Icon(Icons.play_arrow_rounded, size: 20),
+              label: const Text('Iniciar tanda'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: AppColors.darkBg,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: _isStarting ? null : _handleStartTanda,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleStartTanda() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('¿Iniciar la tanda?'),
+        content: const Text(
+          'Se cierra el reclutamiento: ya no se podrán apartar, liberar ni sortear números. '
+          'La primera ronda empieza a recibir aportaciones desde hoy.',
+          style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Todavía no'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Iniciar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isStarting = true);
+    HapticFeedback.heavyImpact();
+    try {
+      await ref.read(tandaDetailActionsProvider).startTanda(tandaId: widget.tandaId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Arrancó la tanda! La primera ronda ya recibe aportaciones 🚀'),
+            backgroundColor: AppColors.primaryDark,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isStarting = false);
+    }
+  }
+
+  Future<bool?> _confirmPayoutDialog(double amount) {
+    final currencyFormat = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('¿Ya recibiste tu bolsa?'),
+        content: Text(
+          'Confirma solo si ya tienes los ${currencyFormat.format(amount)} en tu cuenta. '
+          'Todos en la tanda verán que tu turno quedó pagado.',
+          style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Todavía no'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sí, ya la recibí'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Regresa null si el organizador cancela
+  Future<String?> _askRejectionReason() {
+    const defaultReason = 'Comprobante ilegible o monto incorrecto';
+    final controller = TextEditingController(text: defaultReason);
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Rechazar aportación'),
+        content: TextField(
+          controller: controller,
+          maxLines: 2,
+          decoration: InputDecoration(
+            labelText: 'Motivo (lo verá el participante)',
+            filled: true,
+            fillColor: AppColors.darkCard,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () {
+              final reason = controller.text.trim();
+              Navigator.pop(dialogContext, reason.isEmpty ? defaultReason : reason);
+            },
+            child: const Text('Rechazar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tandaAsync = ref.watch(tandaDetailProvider(widget.tandaId));
+    // Mientras la pantalla esté abierta, los cambios de otros miembros llegan solos
+    ref.watch(tandaRealtimeProvider(widget.tandaId));
     final currentUser = ref.watch(authControllerProvider).value;
     final currencyFormat = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
 
@@ -112,39 +409,63 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         final title = tanda['title'] as String? ?? 'Detalle de Tanda';
         final isOrganizer = currentUser?.id == tanda['organizer_id'];
         final inviteCode = tanda['invite_code'] as String? ?? '';
+        final tandaStatus = tanda['status'] as String? ?? 'recruiting';
+        final isRecruiting = tandaStatus == 'recruiting' || tandaStatus == 'draft';
         final slotsData = tanda['slots'] as List<dynamic>? ?? [];
         final roundsData = tanda['rounds'] as List<dynamic>? ?? [];
 
-        // Ronda activa (primera collecting o upcoming)
-        final activeRound = roundsData.firstWhere(
+        // Solo se aceptan aportaciones en la ronda que está recaudando
+        final collectingRound = roundsData.firstWhere(
           (r) => r['status'] == 'collecting',
-          orElse: () => roundsData.isNotEmpty ? roundsData.first : null,
-        );
-
-        final expectedAmount = (activeRound?['expected_amount'] as num?)?.toDouble() ?? 10000.0;
-        final collectedAmount = (activeRound?['collected_amount'] as num?)?.toDouble() ?? 0.0;
-        final roundNumber = (activeRound?['round_number'] as num?)?.toInt() ?? 1;
-        final activeRoundId = activeRound?['id'] as String? ?? '';
-
-        // Beneficiario del turno activo
-        final beneficiarySlotNumber = (activeRound?['slot_number_beneficiary'] as num?)?.toInt() ?? 1;
-        final beneficiarySlot = slotsData.firstWhere(
-          (s) => s['slot_number'] == beneficiarySlotNumber,
           orElse: () => null,
         );
-        final beneficiaryName = beneficiarySlot?['user']?['full_name'] ?? 'Por asignar';
+        // La ronda en juego: recaudando o ya completa esperando la entrega de la bolsa
+        final displayRound = roundsData.firstWhere(
+          (r) => r['status'] == 'collecting' || r['status'] == 'completed_pending_payout',
+          orElse: () => null,
+        );
+        final readyPayoutSlotNumbers = roundsData
+            .where((r) => r['status'] == 'completed_pending_payout')
+            .map((r) => (r['slot_number_beneficiary'] as num).toInt())
+            .toSet();
+
+        final payoutTotal = (tanda['payout_total'] as num?)?.toDouble() ?? 0.0;
+        final expectedAmount = (displayRound?['expected_amount'] as num?)?.toDouble() ?? payoutTotal;
+        final collectedAmount = (displayRound?['collected_amount'] as num?)?.toDouble() ?? 0.0;
+        final roundNumber = (displayRound?['round_number'] as num?)?.toInt();
+        final collectingRoundId = collectingRound?['id'] as String?;
+
+        // Beneficiario del turno activo (no hay mientras no existan rondas)
+        final beneficiarySlotNumber = (displayRound?['slot_number_beneficiary'] as num?)?.toInt();
+        final beneficiarySlot = beneficiarySlotNumber == null
+            ? null
+            : slotsData.firstWhere(
+                (s) => s['slot_number'] == beneficiarySlotNumber,
+                orElse: () => null,
+              );
+        final beneficiaryName = beneficiarySlot?['user']?['full_name'] as String? ?? 'Por asignar';
 
         final userSlots = slotsData.where((s) => s['user']?['id'] == currentUser?.id).toList();
+        final emptySlotsCount = slotsData.where((s) => s['user'] == null).length;
+
+        // Si ya mandó comprobante de esta ronda (en revisión o aprobado) no se le vuelve a ofrecer
+        final payments = ref.watch(tandaPaymentsProvider(widget.tandaId)).value ?? const [];
+        final alreadyPaidThisRound = collectingRoundId != null &&
+            payments.any((p) =>
+                p['round_id'] == collectingRoundId &&
+                p['payer_user_id'] == currentUser?.id &&
+                (p['status'] == 'submitted' || p['status'] == 'approved'));
 
         // Mapear slots a SlotItemData para la línea de tiempo
         final mappedSlots = slotsData.map((s) {
           final slotId = s['id'] as String;
-          final slotNum = s['slot_number'] as int;
+          final slotNum = (s['slot_number'] as num).toInt();
           final user = s['user'];
           final isUser = user != null && user['id'] == currentUser?.id;
-          final userName = user != null ? (isUser ? '${user['full_name']} (Tú)' : user['full_name']) : 'Turno disponible';
+          final fullName = user?['full_name'] as String? ?? 'Participante';
+          final userName = user != null ? (isUser ? '$fullName (Tú)' : fullName) : 'Turno disponible';
           final scheduledDateStr = s['scheduled_payout_date'] as String?;
-          final scheduledDate = scheduledDateStr != null ? DateTime.parse(scheduledDateStr) : DateTime.now();
+          final scheduledDate = scheduledDateStr != null ? DateTime.tryParse(scheduledDateStr)?.toLocal() : null;
           final isCurrent = slotNum == beneficiarySlotNumber;
           final isCompleted = s['payout_status'] == 'confirmed';
 
@@ -157,6 +478,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             amount: expectedAmount,
             isCompleted: isCompleted,
             isCurrent: isCurrent,
+            isPayoutReady: readyPayoutSlotNumbers.contains(slotNum),
             isAvailable: user == null,
           );
         }).toList();
@@ -167,7 +489,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             backgroundColor: Colors.transparent,
             elevation: 0,
             actions: [
-              if (isOrganizer)
+              // El sorteo solo tiene sentido antes de arrancar la tanda
+              if (isOrganizer && isRecruiting)
                 IconButton(
                   icon: const Icon(Icons.casino_outlined, color: AppColors.gold),
                   tooltip: 'Ejecutar Sorteo Aleatorio',
@@ -175,18 +498,12 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                 ),
               IconButton(
                 icon: const Icon(Icons.share_outlined, color: AppColors.primary),
-                tooltip: 'Compartir código por WhatsApp',
+                tooltip: 'Compartir invitación',
                 onPressed: () {
                   HapticFeedback.lightImpact();
                   final msg =
                       '¡Hola! Te invito a mi tanda "$title". Únete en la app con este código: $inviteCode 📱🎉';
-                  Clipboard.setData(ClipboardData(text: msg));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Mensaje de invitación copiado para WhatsApp 💬'),
-                      backgroundColor: AppColors.primaryDark,
-                    ),
-                  );
+                  SharePlus.instance.share(ShareParams(text: msg, subject: 'Invitación a la tanda "$title"'));
                 },
               ),
             ],
@@ -216,7 +533,9 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                               const Icon(Icons.star, color: AppColors.gold, size: 16),
                               const SizedBox(width: 6),
                               Text(
-                                'Ronda Activa #$roundNumber de ${slotsData.length}',
+                                roundNumber != null
+                                    ? 'Ronda Activa #$roundNumber de ${slotsData.length}'
+                                    : 'Reuniendo participantes',
                                 style: const TextStyle(
                                   color: AppColors.gold,
                                   fontWeight: FontWeight.bold,
@@ -325,11 +644,17 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                   controller: _tabController,
                   children: [
                     // Tab 1: El Camino de la Tanda
-                    SingleChildScrollView(
+                    _withPullToRefresh(SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (isRecruiting)
+                            _buildRecruitingBanner(
+                              isOrganizer: isOrganizer,
+                              emptySlotsCount: emptySlotsCount,
+                            ),
                           if (userSlots.isNotEmpty)
                             Container(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -345,7 +670,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Tus números: ${userSlots.map((s) => '#${s['slot_number']}').join(', ')} (${userSlots.length} ${userSlots.length == 1 ? 'número' : 'números'}) • Toca cualquier número libre para apartar otro sin límite',
+                                      'Tus números: ${userSlots.map((s) => '#${s['slot_number']}').join(', ')} (${userSlots.length} ${userSlots.length == 1 ? 'número' : 'números'})'
+                                          '${isRecruiting && emptySlotsCount > 0 ? ' • Toca cualquier número libre para apartar otro' : ''}',
                                       style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
                                     ),
                                   ),
@@ -361,16 +687,16 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                                 beneficiarySlot: beneficiarySlot,
                                 isOrganizer: isOrganizer,
                                 currentUserId: currentUser?.id,
-                                tandaStatus: tanda['status'] as String? ?? 'recruiting',
+                                tandaStatus: tandaStatus,
                               );
                             },
                           ),
                         ],
                       ),
-                    ),
+                    )),
 
                     // Tab 2: Aportaciones en Vivo
-                    _buildPaymentsTab(isOrganizer),
+                    _withPullToRefresh(_buildPaymentsTab(isOrganizer)),
                   ],
                 ),
               ),
@@ -378,13 +704,16 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              if (activeRoundId.isNotEmpty) {
-                _handlePickAndSubmitReceipt(activeRoundId);
-              }
-            },
+      // Solo los participantes aportan, y solo mientras una ronda está recaudando
+      floatingActionButton: collectingRoundId == null || userSlots.isEmpty || alreadyPaidThisRound
+          ? null
+          : FloatingActionButton.extended(
+            onPressed: _isUploading
+                ? null
+                : () {
+                    HapticFeedback.lightImpact();
+                    _handlePickAndSubmitReceipt(collectingRoundId);
+                  },
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.darkBg,
             icon: _isUploading
@@ -415,40 +744,74 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     );
   }
 
+  Future<void> _refreshAll() async {
+    ref.invalidate(tandaPaymentsProvider(widget.tandaId));
+    ref.invalidate(tandaDetailProvider(widget.tandaId));
+    try {
+      await ref.read(tandaDetailProvider(widget.tandaId).future);
+    } catch (_) {
+      // El error ya se muestra en pantalla vía tandaDetailProvider
+    }
+  }
+
+  Widget _withPullToRefresh(Widget scrollable) {
+    return RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.darkSurface,
+      onRefresh: _refreshAll,
+      child: scrollable,
+    );
+  }
+
+  /// Mensaje dentro de una lista para que también se pueda jalar para refrescar
+  Widget _scrollableMessage(String message) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+      children: [
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.darkTextSecondary),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPaymentsTab(bool isOrganizer) {
     final paymentsAsync = ref.watch(tandaPaymentsProvider(widget.tandaId));
     final currencyFormat = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
+    final currentUserId = ref.watch(authControllerProvider).value?.id;
 
     return paymentsAsync.when(
       data: (payments) {
         if (payments.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Aún no hay aportaciones registradas en esta tanda.',
-                style: TextStyle(color: AppColors.darkTextSecondary),
-              ),
-            ),
-          );
+          return _scrollableMessage('Aún no hay aportaciones registradas en esta tanda.');
         }
 
         return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 90),
           itemCount: payments.length,
           itemBuilder: (context, index) {
             final p = payments[index] as Map<String, dynamic>;
             final paymentId = p['id'] as String;
             final payerName = p['payer']?['full_name'] ?? 'Participante';
-            final amount = (p['amount'] as num).toDouble();
+            final amount = (p['amount'] as num?)?.toDouble() ?? 0.0;
             final status = p['status'] as String;
             final isApproved = status == 'approved';
             final isPending = status == 'submitted';
+            final isReviewing = _reviewingPayments.contains(paymentId);
+            final proofUrl = p['proof_image_url'] as String?;
+            final rejectionReason = p['rejection_reason'] as String?;
+            final isMine = p['payer_user_id'] == currentUserId;
+            final canSeeProof = proofUrl != null && (isOrganizer || isMine);
 
             return LiquidGlassContainer(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               borderRadius: BrandConfig.cardRadius,
+              blur: 0, // Se repite por cada aportación: sin BackdropFilter por rendimiento
               opacity: isApproved ? 0.08 : (isPending ? 0.1 : 0.05),
               borderOpacity: isApproved ? 0.25 : (isPending ? 0.35 : 0.15),
               tintColor: isApproved
@@ -503,6 +866,26 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                       ),
                     ],
                   ),
+                  if (status == 'rejected' && rejectionReason != null && (isOrganizer || isMine)) ...[
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Motivo: $rejectionReason${isMine ? ' • Puedes volver a enviar tu comprobante.' : ''}',
+                        style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+                      ),
+                    ),
+                  ],
+                  if (canSeeProof)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                        label: const Text('Ver comprobante'),
+                        onPressed: () => _openProof(proofUrl),
+                      ),
+                    ),
                   if (isOrganizer && isPending) ...[
                     const SizedBox(height: 12),
                     const Divider(color: Colors.white12, height: 1),
@@ -513,14 +896,9 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                         TextButton.icon(
                           icon: const Icon(Icons.close, color: Colors.red, size: 18),
                           label: const Text('Rechazar', style: TextStyle(color: Colors.red)),
-                          onPressed: () {
-                            ref.read(tandaDetailActionsProvider).reviewPayment(
-                                  paymentId: paymentId,
-                                  approved: false,
-                                  rejectionReason: 'Comprobante ilegible o monto incorrecto',
-                                  tandaId: widget.tandaId,
-                                );
-                          },
+                          onPressed: isReviewing
+                              ? null
+                              : () => _handleReviewPayment(paymentId: paymentId, approved: false),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton.icon(
@@ -531,14 +909,12 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                             foregroundColor: AppColors.darkBg,
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           ),
-                          onPressed: () {
-                            HapticFeedback.lightImpact();
-                            ref.read(tandaDetailActionsProvider).reviewPayment(
-                                  paymentId: paymentId,
-                                  approved: true,
-                                  tandaId: widget.tandaId,
-                                );
-                          },
+                          onPressed: isReviewing
+                              ? null
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  _handleReviewPayment(paymentId: paymentId, approved: true);
+                                },
                         ),
                       ],
                     ),
@@ -550,7 +926,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         );
       },
       loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      error: (e, _) => Center(child: Text('Error al cargar pagos: $e')),
+      error: (e, _) => _scrollableMessage(e.toString().replaceAll('Exception: ', '')),
     );
   }
 
@@ -566,6 +942,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     final isMySlot = slot.userId != null && slot.userId == currentUserId;
     final canClaim = slot.isAvailable && (tandaStatus == 'recruiting' || tandaStatus == 'draft');
     final canRelease = isMySlot && (tandaStatus == 'recruiting' || tandaStatus == 'draft');
+    final canConfirmPayout = isMySlot && slot.isPayoutReady && !slot.isCompleted;
 
     showModalBottomSheet(
       context: context,
@@ -573,7 +950,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
           child: Column(
@@ -659,7 +1036,9 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                       children: [
                         const Text('Fecha de cobro:', style: TextStyle(color: Colors.white60, fontSize: 12)),
                         Text(
-                          DateFormat('dd MMMM yyyy', 'es_MX').format(slot.dueDate),
+                          slot.dueDate != null
+                              ? DateFormat('dd MMMM yyyy', 'es_MX').format(slot.dueDate!)
+                              : 'Por definir',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                         ),
                       ],
@@ -697,30 +1076,71 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                       textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     onPressed: () async {
-                      Navigator.pop(context);
+                      // Se toma antes del await: el contexto del modal deja de existir al cerrarlo
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(sheetContext);
                       HapticFeedback.mediumImpact();
                       try {
                         await ref.read(tandaDetailActionsProvider).claimSlot(
                               slotId: slot.slotId,
                               tandaId: widget.tandaId,
                             );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('¡Apartaste el Turno #${slot.slotNumber}! 🎉 Puedes apartar más números si gustas.'),
-                              backgroundColor: AppColors.primaryDark,
-                            ),
-                          );
-                        }
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('¡Apartaste el Turno #${slot.slotNumber}! 🎉 Puedes apartar más números si gustas.'),
+                            backgroundColor: AppColors.primaryDark,
+                          ),
+                        );
                       } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(e.toString().replaceAll('Exception: ', '')),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                        }
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(e.toString().replaceAll('Exception: ', '')),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (canConfirmPayout) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.verified_outlined, size: 18),
+                    label: const Text('Ya recibí mi bolsa'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.gold,
+                      foregroundColor: AppColors.darkBg,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(sheetContext);
+                      final confirmed = await _confirmPayoutDialog(slot.amount);
+                      if (confirmed != true) return;
+                      HapticFeedback.mediumImpact();
+                      try {
+                        await ref.read(tandaDetailActionsProvider).confirmPayout(
+                              slotId: slot.slotId,
+                              tandaId: widget.tandaId,
+                            );
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('¡Listo! Confirmaste que recibiste tu bolsa 💰'),
+                            backgroundColor: AppColors.primaryDark,
+                          ),
+                        );
+                      } catch (e) {
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(e.toString().replaceAll('Exception: ', '')),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
                       }
                     },
                   ),
@@ -739,30 +1159,28 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: () async {
-                      Navigator.pop(context);
+                      // Se toma antes del await: el contexto del modal deja de existir al cerrarlo
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(sheetContext);
                       HapticFeedback.lightImpact();
                       try {
                         await ref.read(tandaDetailActionsProvider).releaseSlot(
                               slotId: slot.slotId,
                               tandaId: widget.tandaId,
                             );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Turno #${slot.slotNumber} liberado con éxito'),
-                              backgroundColor: AppColors.darkCard,
-                            ),
-                          );
-                        }
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('Turno #${slot.slotNumber} liberado con éxito'),
+                            backgroundColor: AppColors.darkCard,
+                          ),
+                        );
                       } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(e.toString().replaceAll('Exception: ', '')),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                        }
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(e.toString().replaceAll('Exception: ', '')),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
                       }
                     },
                   ),
@@ -772,7 +1190,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(sheetContext),
                   child: const Text('Cerrar'),
                 ),
               ),

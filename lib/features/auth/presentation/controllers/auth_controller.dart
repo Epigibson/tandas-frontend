@@ -17,7 +17,23 @@ class AuthController extends AsyncNotifier<UserModel?> {
   @override
   FutureOr<UserModel?> build() async {
     final repository = ref.watch(authRepositoryProvider);
-    return await repository.getCachedUser();
+    ref.read(apiClientProvider).onUnauthorized = () {
+      if (state.value != null) logout();
+    };
+
+    final cachedUser = await repository.getCachedUser();
+    if (cachedUser != null) {
+      // Valida el token y trae score/estadísticas frescas sin bloquear el arranque
+      unawaited(_refreshUser(repository));
+    }
+    return cachedUser;
+  }
+
+  Future<void> _refreshUser(AuthRepository repository) async {
+    final freshUser = await repository.refreshCurrentUser();
+    if (freshUser != null && ref.mounted && state.value != null) {
+      state = AsyncValue.data(freshUser);
+    }
   }
 
   Future<void> login({
