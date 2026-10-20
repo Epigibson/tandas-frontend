@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 
 class SlotItemData {
@@ -60,8 +59,8 @@ class TandaJourneyTimeline extends StatelessWidget {
                 _buildNodeIndicator(slot),
                 if (!isLast)
                   Container(
-                    width: 3,
-                    height: 54,
+                    width: 2.5,
+                    height: 38,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
@@ -77,15 +76,15 @@ class TandaJourneyTimeline extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
 
-            // Tarjeta de Información del Turno con Vidrio Líquido
+            // Tarjeta de Información del Turno Compacta
             Expanded(
               child: LiquidGlassContainer(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(16),
-                borderRadius: BrandConfig.cardRadius,
-                blur: slot.isCurrent ? 24 : 16,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                borderRadius: 16,
+                blur: slot.isCurrent ? 16 : 12,
                 tintColor: slot.isCurrent
                     ? AppColors.gold
                     : (slot.isCompleted ? AppColors.primary : null),
@@ -99,7 +98,7 @@ class TandaJourneyTimeline extends StatelessWidget {
                     children: [
                       // Avatar o Inicial
                       CircleAvatar(
-                        radius: 22,
+                        radius: 17,
                         backgroundColor: slot.isCurrent
                             ? AppColors.gold.withValues(alpha: 0.2)
                             : (slot.isCompleted
@@ -109,13 +108,14 @@ class TandaJourneyTimeline extends StatelessWidget {
                           slot.isAvailable ? '?' : slot.userName.substring(0, 1).toUpperCase(),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
+                            fontSize: 12,
                             color: slot.isCurrent
                                 ? AppColors.gold
                                 : (slot.isCompleted ? AppColors.primary : Colors.white70),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 10),
 
                       // Detalles
                       Expanded(
@@ -128,25 +128,25 @@ class TandaJourneyTimeline extends StatelessWidget {
                                   'Turno #${slot.slotNumber}',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                                    fontSize: 11,
                                     color: slot.isCurrent
                                         ? AppColors.gold
                                         : AppColors.darkTextSecondary,
                                   ),
                                 ),
                                 if (slot.isCurrent) ...[
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                     decoration: BoxDecoration(
                                       color: AppColors.gold.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: const Text(
                                       '¡Cobra ahora!',
                                       style: TextStyle(
                                         color: AppColors.gold,
-                                        fontSize: 11,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -154,19 +154,22 @@ class TandaJourneyTimeline extends StatelessWidget {
                                 ],
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
                               slot.isAvailable ? 'Número disponible' : slot.userName,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: 13,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
 
                       // Monto y Fecha
+                      const SizedBox(width: 6),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -174,15 +177,15 @@ class TandaJourneyTimeline extends StatelessWidget {
                             currencyFormat.format(slot.amount),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 15,
+                              fontSize: 13,
                               color: slot.isCurrent ? AppColors.gold : Colors.white,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             dateFormat.format(slot.dueDate),
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: AppColors.darkTextSecondary,
                             ),
                           ),
@@ -201,47 +204,47 @@ class TandaJourneyTimeline extends StatelessWidget {
   Widget _buildNodeIndicator(SlotItemData slot) {
     if (slot.isCompleted) {
       return Container(
-        width: 32,
-        height: 32,
+        width: 24,
+        height: 24,
         decoration: const BoxDecoration(
           color: AppColors.primary,
           shape: BoxShape.circle,
         ),
-        child: const Icon(Icons.check, color: AppColors.darkBg, size: 18),
+        child: const Icon(Icons.check, color: AppColors.darkBg, size: 14),
       );
     } else if (slot.isCurrent) {
       return Container(
-        width: 36,
-        height: 36,
+        width: 26,
+        height: 26,
         decoration: BoxDecoration(
           color: AppColors.gold,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
               color: AppColors.gold.withValues(alpha: 0.5),
-              blurRadius: 12,
-              spreadRadius: 3,
+              blurRadius: 8,
+              spreadRadius: 2,
             ),
           ],
         ),
         child: const Center(
-          child: Icon(Icons.star, color: Colors.black, size: 20),
+          child: Icon(Icons.star, color: Colors.black, size: 15),
         ),
       );
     } else {
       return Container(
-        width: 30,
-        height: 30,
+        width: 22,
+        height: 22,
         decoration: BoxDecoration(
           color: AppColors.darkSurface,
           shape: BoxShape.circle,
-          border: Border.all(color: AppColors.darkBorder, width: 2),
+          border: Border.all(color: AppColors.darkBorder, width: 1.5),
         ),
         child: Center(
           child: Text(
             '${slot.slotNumber}',
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 10,
               color: AppColors.darkTextSecondary,
               fontWeight: FontWeight.bold,
             ),

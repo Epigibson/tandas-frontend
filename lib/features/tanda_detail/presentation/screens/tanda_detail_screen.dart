@@ -190,13 +190,13 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             child: SafeArea(
               child: Column(
                 children: [
-                  // Tarjeta de Ronda Activa con Vidrio Líquido Ámbar
+                  // Tarjeta de Ronda Activa con Vidrio Líquido Ámbar Compacta
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                     child: LiquidGlassContainer(
-                      padding: const EdgeInsets.all(20),
-                      borderRadius: BrandConfig.cardRadius,
-                      blur: 16,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      borderRadius: 16,
+                      blur: 14,
                       tintColor: AppColors.gold,
                       opacity: 0.12,
                       borderOpacity: 0.35,
@@ -208,85 +208,91 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.star, color: AppColors.gold, size: 20),
-                              const SizedBox(width: 8),
+                              const Icon(Icons.star, color: AppColors.gold, size: 16),
+                              const SizedBox(width: 6),
                               Text(
                                 'Ronda Activa #$roundNumber de ${slotsData.length}',
                                 style: const TextStyle(
                                   color: AppColors.gold,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               'Bolsa: ${currencyFormat.format(expectedAmount)}',
                               style: const TextStyle(
                                 color: AppColors.primary,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       const Text(
                         'Beneficiario(a) de la bolsa:',
-                        style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+                        style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 11),
                       ),
                       const SizedBox(height: 2),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            beneficiaryName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                          Expanded(
+                            child: Text(
+                              beneficiaryName,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkTextPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Text(
                             currencyFormat.format(expectedAmount),
                             style: const TextStyle(
-                              fontSize: 22,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: AppColors.gold,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Recaudado: ${currencyFormat.format(collectedAmount)}',
-                            style: const TextStyle(fontSize: 12, color: Colors.white70),
+                            style: const TextStyle(fontSize: 11, color: Colors.white70),
                           ),
                           Text(
                             expectedAmount > 0
                                 ? '${((collectedAmount / expectedAmount) * 100).toInt()}%'
                                 : '0%',
-                            style: const TextStyle(fontSize: 12, color: AppColors.primary),
+                            style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: expectedAmount > 0 ? (collectedAmount / expectedAmount) : 0.0,
                           backgroundColor: Colors.black26,
                           valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                          minHeight: 6,
+                          minHeight: 4,
                         ),
                       ),
                     ],
