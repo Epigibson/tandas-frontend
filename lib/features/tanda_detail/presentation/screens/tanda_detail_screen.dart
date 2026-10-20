@@ -56,7 +56,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     try {
       await ref.read(tandaDetailActionsProvider).submitPaymentProof(
             roundId: roundId,
-            filePath: pickedFile.path,
+            file: pickedFile,
             tandaId: widget.tandaId,
           );
 

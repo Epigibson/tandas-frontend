@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:local_auth_android/local_auth_android.dart';
@@ -10,6 +11,8 @@ class BiometricService {
 
   /// El teléfono tiene sensor y al menos una huella (o rostro) registrada
   Future<bool> isAvailable() async {
+    // En el navegador no hay huella: se entra con contraseña
+    if (kIsWeb) return false;
     try {
       if (!await _auth.isDeviceSupported() || !await _auth.canCheckBiometrics) return false;
       return (await _auth.getAvailableBiometrics()).isNotEmpty;

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:tanda_app/core/network/api_error.dart';
 import 'package:tanda_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:tanda_app/features/tanda_creator/presentation/controllers/tanda_controller.dart';
@@ -35,7 +36,7 @@ class TandaDetailActions {
 
   Future<void> submitPaymentProof({
     required String roundId,
-    required String filePath,
+    required XFile file,
     required String tandaId,
   }) async {
     final apiClient = _ref.read(apiClientProvider);
@@ -44,9 +45,13 @@ class TandaDetailActions {
       // 1. Subir archivo
       final formData = FormData.fromMap({
         // Sin contentType Dio manda application/octet-stream y el backend lo rechaza
-        'file': await MultipartFile.fromFile(
-          filePath,
-          contentType: MultipartFile.lookupMediaType(filePath) ?? DioMediaType('image', 'jpeg'),
+        // Con bytes funciona igual en el teléfono y en el navegador, donde no hay rutas de archivo
+        'file': MultipartFile.fromBytes(
+          await file.readAsBytes(),
+          filename: file.name,
+          contentType: (file.mimeType != null ? DioMediaType.parse(file.mimeType!) : null) ??
+              MultipartFile.lookupMediaType(file.name) ??
+              DioMediaType('image', 'jpeg'),
         ),
       });
       final uploadRes = await apiClient.dio.post('/upload/receipt', data: formData);

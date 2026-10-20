@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/network/api_client.dart';
@@ -151,7 +151,7 @@ class AuthRepository {
     try {
       final response = await _apiClient.dio.post(
         '/auth/devices',
-        data: {'device_name': Platform.isIOS ? 'iPhone' : 'Android'},
+        data: {'device_name': _deviceName()},
       );
       await _secureStorage.write(key: _deviceIdKey, value: response.data['device_id'] as String);
       await _secureStorage.write(key: _deviceSecretKey, value: response.data['device_secret'] as String);
@@ -256,4 +256,10 @@ class AuthRepository {
     await prefs.setString(_userKey, jsonEncode(user.toJson()));
     _apiClient.updateToken(token);
   }
+}
+
+// dart:io no existe en web, por eso se usa defaultTargetPlatform
+String _deviceName() {
+  if (kIsWeb) return 'Navegador';
+  return defaultTargetPlatform == TargetPlatform.iOS ? 'iPhone' : 'Android';
 }
