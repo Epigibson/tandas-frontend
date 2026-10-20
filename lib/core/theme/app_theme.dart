@@ -29,6 +29,11 @@ class AppTheme {
           fontWeight: FontWeight.w600,
           color: AppColors.darkTextPrimary,
         ),
+        titleMedium: GoogleFonts.outfit(
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          color: AppColors.darkTextPrimary,
+        ),
         bodyLarge: GoogleFonts.plusJakartaSans(
           fontSize: 16,
           color: AppColors.darkTextPrimary,

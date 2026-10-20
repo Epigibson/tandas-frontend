@@ -70,8 +70,10 @@ class HomeScreen extends ConsumerWidget {
                                 ),
                                 Text(
                                   displayName,
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  style: const TextStyle(
+                                    fontSize: 18,
                                     fontWeight: FontWeight.bold,
+                                    color: AppColors.darkTextPrimary,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
