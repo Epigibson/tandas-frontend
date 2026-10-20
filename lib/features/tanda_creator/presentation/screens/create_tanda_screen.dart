@@ -68,12 +68,13 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
 
   Future<void> _pickStartDate() async {
     final today = DateUtils.dateOnly(DateTime.now());
-    final picked = await showDatePicker(
+    final picked = await showDialog<DateTime>(
       context: context,
-      initialDate: _startDate,
-      firstDate: today,
-      lastDate: today.add(const Duration(days: 365)),
-      helpText: 'Fecha de inicio de la tanda',
+      builder: (_) => _StartDatePickerDialog(
+        initialDate: _startDate,
+        firstDate: today,
+        lastDate: today.add(const Duration(days: 365)),
+      ),
     );
     if (picked != null) setState(() => _startDate = picked);
   }
@@ -507,7 +508,7 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                   ),
                   child: ListTile(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    leading: const Icon(Icons.event_outlined, color: AppColors.primary),
+                    leading: const Icon(Icons.access_time, color: AppColors.primary),
                     title: Text(
                       DateFormat("EEEE d 'de' MMMM 'de' y", 'es_MX').format(_startDate),
                       style: const TextStyle(fontWeight: FontWeight.w600),
@@ -518,7 +519,6 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                           : 'El primer turno cobra este día',
                       style: const TextStyle(fontSize: 12, color: AppColors.darkTextSecondary),
                     ),
-                    trailing: const Icon(Icons.edit_calendar_outlined, size: 20),
                     onTap: _pickStartDate,
                   ),
                 ),
@@ -622,6 +622,141 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Calendario sin íconos: el selector de Flutter usa glifos que no vienen en la fuente de
+/// íconos de la versión instalada, y un parche de Shorebird no puede agregarlos.
+class _StartDatePickerDialog extends StatefulWidget {
+  final DateTime initialDate;
+  final DateTime firstDate;
+  final DateTime lastDate;
+
+  const _StartDatePickerDialog({
+    required this.initialDate,
+    required this.firstDate,
+    required this.lastDate,
+  });
+
+  @override
+  State<_StartDatePickerDialog> createState() => _StartDatePickerDialogState();
+}
+
+class _StartDatePickerDialogState extends State<_StartDatePickerDialog> {
+  late DateTime _month;
+  late DateTime _selected;
+
+  static const _weekdays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialDate;
+    _month = DateTime(_selected.year, _selected.month);
+  }
+
+  bool get _canGoBack => _month.isAfter(DateTime(widget.firstDate.year, widget.firstDate.month));
+  bool get _canGoForward => _month.isBefore(DateTime(widget.lastDate.year, widget.lastDate.month));
+
+  void _moveMonth(int delta) => setState(() => _month = DateTime(_month.year, _month.month + delta));
+
+  @override
+  Widget build(BuildContext context) {
+    final daysInMonth = DateUtils.getDaysInMonth(_month.year, _month.month);
+    final leadingBlanks = DateTime(_month.year, _month.month).weekday - 1; // semana inicia en lunes
+    final monthLabel = DateFormat('MMMM y', 'es_MX').format(_month);
+
+    return AlertDialog(
+      backgroundColor: AppColors.darkSurface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text('Fecha de inicio de la tanda', style: TextStyle(fontSize: 17)),
+      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      content: SizedBox(
+        width: 300,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                TextButton(
+                  onPressed: _canGoBack ? () => _moveMonth(-1) : null,
+                  child: const Text('‹', style: TextStyle(fontSize: 26)),
+                ),
+                Expanded(
+                  child: Text(
+                    '${monthLabel[0].toUpperCase()}${monthLabel.substring(1)}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _canGoForward ? () => _moveMonth(1) : null,
+                  child: const Text('›', style: TextStyle(fontSize: 26)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            GridView.count(
+              crossAxisCount: 7,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                for (final day in _weekdays)
+                  Center(
+                    child: Text(day, style: const TextStyle(fontSize: 12, color: AppColors.darkTextSecondary)),
+                  ),
+                for (var i = 0; i < leadingBlanks; i++) const SizedBox.shrink(),
+                for (var d = 1; d <= daysInMonth; d++) _buildDay(DateTime(_month.year, _month.month, d)),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, _selected),
+          child: const Text('Listo'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDay(DateTime date) {
+    final enabled = !date.isBefore(widget.firstDate) && !date.isAfter(widget.lastDate);
+    final selected = DateUtils.isSameDay(date, _selected);
+    final isToday = DateUtils.isSameDay(date, DateTime.now());
+
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: enabled ? () => setState(() => _selected = date) : null,
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: selected ? AppColors.primary : null,
+            border: isToday && !selected ? Border.all(color: AppColors.primary) : null,
+          ),
+          child: Text(
+            '${date.day}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              color: selected
+                  ? AppColors.darkBg
+                  : enabled
+                      ? AppColors.darkTextPrimary
+                      : AppColors.darkTextSecondary.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
       ),
     );
   }

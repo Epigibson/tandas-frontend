@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 import 'package:tanda_app/core/network/api_client.dart';
 import 'package:tanda_app/features/tanda_creator/data/models/tanda_model.dart';
 import 'package:tanda_app/features/tanda_creator/data/repositories/tanda_repository.dart';
@@ -172,10 +173,20 @@ void main() {
     expect(find.text('Guardar cambios'), findsOneWidget);
 
     // El calendario sale en español y no deja elegir días pasados
-    await tester.ensureVisible(find.byIcon(Icons.edit_calendar_outlined));
-    await tester.tap(find.byIcon(Icons.edit_calendar_outlined));
+    await tester.ensureVisible(find.byIcon(Icons.access_time));
+    await tester.tap(find.byIcon(Icons.access_time));
     await tester.pumpAndSettle();
     expect(find.text('Fecha de inicio de la tanda'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // Elige el día 15 del mes siguiente y lo muestra en el formulario
+    await tester.tap(find.text('›'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15'));
+    await tester.tap(find.text('Listo'));
+    await tester.pumpAndSettle();
+    final next = DateTime(tomorrow.year, tomorrow.month + 1, 15);
+    expect(find.textContaining('15 de ${DateFormat('MMMM', 'es_MX').format(next)}'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

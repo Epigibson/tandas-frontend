@@ -85,7 +85,7 @@ class _JoinTandaScreenState extends ConsumerState<JoinTandaScreen> {
           child: preview.when(
             loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
             error: (e, _) => _buildMessage(
-              icon: Icons.link_off_rounded,
+              icon: Icons.info_outline,
               text: e.toString().replaceAll('Exception: ', ''),
             ),
             data: _buildContent,
@@ -130,7 +130,7 @@ class _JoinTandaScreenState extends ConsumerState<JoinTandaScreen> {
     final Widget? bottomButton;
     if (alreadyMember) {
       bottomButton = ElevatedButton.icon(
-        icon: const Icon(Icons.arrow_forward_rounded),
+        icon: const Icon(Icons.play_arrow_rounded),
         label: const Text('Ya estás en esta tanda: ver tanda'),
         onPressed: () => _openDetail(tanda['id'] as String),
       );
@@ -193,12 +193,12 @@ class _JoinTandaScreenState extends ConsumerState<JoinTandaScreen> {
                         Text(description, style: const TextStyle(fontSize: 13)),
                       ],
                       const SizedBox(height: 14),
-                      _infoRow(Icons.payments_outlined, 'Aportas ${currencyFormat.format(contribution)} por número en cada ronda'),
-                      _infoRow(Icons.savings_outlined,
+                      _infoRow(Icons.receipt_long_outlined, 'Aportas ${currencyFormat.format(contribution)} por número en cada ronda'),
+                      _infoRow(Icons.account_balance_outlined,
                           'Bolsa de ${currencyFormat.format((tanda['payout_total'] as num).toDouble())} por turno'),
-                      _infoRow(Icons.repeat_rounded, _frequencyLabels[tanda['frequency']] ?? tanda['frequency'] as String),
+                      _infoRow(Icons.refresh, _frequencyLabels[tanda['frequency']] ?? tanda['frequency'] as String),
                       if (startDate != null)
-                        _infoRow(Icons.event_outlined,
+                        _infoRow(Icons.access_time,
                             'Inicia el ${DateFormat("d 'de' MMMM 'de' y", 'es_MX').format(startDate)}'),
                       _infoRow(Icons.group_outlined,
                           '$freeCount de ${tanda['total_slots']} ${freeCount == 1 ? 'lugar libre' : 'lugares libres'}'),

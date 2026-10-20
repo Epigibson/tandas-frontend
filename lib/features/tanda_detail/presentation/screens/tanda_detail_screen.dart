@@ -265,7 +265,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.event_outlined, size: 14, color: AppColors.gold),
+                const Icon(Icons.access_time, size: 14, color: AppColors.gold),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -368,7 +368,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.darkSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 40),
+        icon: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 40),
         title: Text('¿Eliminar "$title"?'),
         content: const Text(
           'Se borra la tanda con todos sus números apartados. Quienes ya entraron dejarán de verla. '
@@ -649,6 +649,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
               ),
               if (isOrganizer && isRecruiting)
                 PopupMenuButton<String>(
+                  // more_vert_rounded ya viene en la fuente de íconos de la versión instalada
+                  icon: const Icon(Icons.more_vert_rounded),
                   tooltip: 'Opciones de la tanda',
                   color: AppColors.darkSurface,
                   onSelected: (value) {
@@ -660,7 +662,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                       value: 'edit',
                       child: ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: Icon(Icons.edit_outlined, color: AppColors.primary),
+                        leading: Icon(Icons.stars_outlined, color: AppColors.primary),
                         title: Text('Editar tanda'),
                       ),
                     ),
@@ -668,7 +670,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                       value: 'delete',
                       child: ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                        leading: Icon(Icons.remove_circle_outline, color: AppColors.error),
                         title: Text('Eliminar tanda', style: TextStyle(color: AppColors.error)),
                       ),
                     ),
@@ -924,7 +926,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.info_outline_rounded, size: 40, color: AppColors.darkTextSecondary),
+                const Icon(Icons.info_outline, size: 40, color: AppColors.darkTextSecondary),
                 const SizedBox(height: 12),
                 Text(
                   e.toString().replaceAll('Exception: ', ''),
