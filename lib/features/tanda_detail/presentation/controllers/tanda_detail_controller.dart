@@ -5,10 +5,14 @@ import 'package:tanda_app/core/network/api_error.dart';
 import 'package:tanda_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:tanda_app/features/tanda_creator/presentation/controllers/tanda_controller.dart';
 
+// Sin reintentos: si la tanda ya no existe o saliste de ella, se avisa de inmediato
+// en lugar de quedarse cargando mientras Riverpod reintenta
+Duration? _noRetry(int retryCount, Object error) => null;
+
 final tandaDetailProvider = FutureProvider.family.autoDispose<Map<String, dynamic>, String>((ref, tandaId) async {
   final repo = ref.watch(tandaRepositoryProvider);
   return await repo.getTandaDetail(tandaId);
-});
+}, retry: _noRetry);
 
 final tandaPaymentsProvider = FutureProvider.family.autoDispose<List<dynamic>, String>((ref, tandaId) async {
   final apiClient = ref.watch(apiClientProvider);
@@ -18,7 +22,7 @@ final tandaPaymentsProvider = FutureProvider.family.autoDispose<List<dynamic>, S
   } on DioException catch (e) {
     throw Exception(apiErrorMessage(e, 'Error al cargar las aportaciones'));
   }
-});
+}, retry: _noRetry);
 
 class TandaDetailActions {
   final Ref _ref;
@@ -124,6 +128,22 @@ class TandaDetailActions {
     await _guard(
       'No se pudo asignar el turno',
       () => apiClient.dio.put('/slots/$slotId/assign-user', queryParameters: {'user_id': userId}),
+    );
+
+    _ref.invalidate(tandaDetailProvider(tandaId));
+    _ref.invalidate(myTandasProvider);
+  }
+
+  /// Elección libre: cambia de número en un solo paso
+  Future<void> moveSlot({
+    required String slotId,
+    required int toNumber,
+    required String tandaId,
+  }) async {
+    final apiClient = _ref.read(apiClientProvider);
+    await _guard(
+      'No se pudo cambiar de número',
+      () => apiClient.dio.post('/slots/$slotId/move', data: {'slot_number': toNumber}),
     );
 
     _ref.invalidate(tandaDetailProvider(tandaId));

@@ -5,6 +5,7 @@ import '../../../../core/auth/biometric_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../admin/presentation/screens/admin_screen.dart';
 import '../controllers/auth_controller.dart';
+import '../screens/profile_screen.dart';
 
 /// Pide la huella y registra este teléfono. Devuelve true si quedó activada.
 Future<bool> enableBiometricFlow(BuildContext context, WidgetRef ref) async {
@@ -191,6 +192,22 @@ class _AccountSheetState extends ConsumerState<_AccountSheet> {
                   activeThumbColor: AppColors.primary,
                   onChanged: _busy ? null : _toggleBiometric,
                 );
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.person_outline, color: AppColors.primary),
+              title: const Text('Mi perfil'),
+              subtitle: Text(
+                user?.clabe == null ? 'Agrega tu CLABE para recibir tu bolsa' : 'Nombre, correo y datos bancarios',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: user?.clabe == null ? AppColors.gold : AppColors.darkTextSecondary,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
               },
             ),
             if (user?.isSuperuser == true)

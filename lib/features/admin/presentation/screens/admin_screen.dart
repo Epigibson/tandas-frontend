@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/clabe.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 import '../../../../shared/widgets/reset_code_dialog.dart';
 import '../../../tanda_creator/data/models/tanda_model.dart';
@@ -397,7 +398,9 @@ class _EditUserSheetState extends ConsumerState<_EditUserSheet> {
                 decoration: _decoration('CLABE (opcional)'),
                 validator: (v) {
                   final value = v?.trim() ?? '';
-                  return value.isEmpty || RegExp(r'^\d{18}$').hasMatch(value) ? null : 'La CLABE tiene 18 dígitos';
+                  if (value.isEmpty) return null;
+                  if (!RegExp(r'^\d{18}$').hasMatch(value)) return 'La CLABE tiene 18 dígitos';
+                  return isValidClabe(value) ? null : 'La CLABE no es válida, revísala';
                 },
               ),
               const SizedBox(height: 10),

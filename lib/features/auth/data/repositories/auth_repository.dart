@@ -113,6 +113,29 @@ class AuthRepository {
     return null;
   }
 
+  /// Mi perfil: nombre, correo y datos bancarios. El teléfono no se cambia aquí (es con lo que se entra).
+  Future<UserModel> updateProfile({
+    required String fullName,
+    String? email,
+    String? clabe,
+    String? bankName,
+  }) async {
+    try {
+      final response = await _apiClient.dio.put('/users/me', data: {
+        'full_name': fullName,
+        'email': email,
+        'clabe': clabe,
+        'bank_name': bankName,
+      });
+      final user = UserModel.fromJson(response.data);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_userKey, jsonEncode(user.toJson()));
+      return user;
+    } on DioException catch (e) {
+      throw Exception(apiErrorMessage(e, 'No se pudieron guardar tus datos'));
+    }
+  }
+
   Future<UserModel?> refreshCurrentUser() async {
     try {
       final response = await _apiClient.dio.get('/users/me');

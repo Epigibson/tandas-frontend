@@ -91,12 +91,12 @@ void main() {
     expect(repo.saved, isNull);
 
     await tester.enterText(find.widgetWithText(TextFormField, 'Teléfono (10 dígitos)'), '5598765432');
-    await tester.enterText(find.widgetWithText(TextFormField, 'CLABE (opcional)'), '012180001234567891');
+    await tester.enterText(find.widgetWithText(TextFormField, 'CLABE (opcional)'), '012180001234567899');
     await tester.ensureVisible(find.text('Guardar'));
     await tester.tap(find.text('Guardar'));
     await tester.pumpAndSettle();
     expect(repo.saved?['phone'], '5598765432');
-    expect(repo.saved?['clabe'], '012180001234567891');
+    expect(repo.saved?['clabe'], '012180001234567899');
     expect(repo.saved?['email'], isNull);
     expect(find.text('Datos guardados ✅'), findsOneWidget);
     expect(tester.takeException(), isNull);

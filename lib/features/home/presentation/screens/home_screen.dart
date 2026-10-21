@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/invite/pending_invite.dart';
 import '../../../../core/realtime/tanda_realtime.dart';
+import '../../../../core/utils/invite_link.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
@@ -65,6 +67,19 @@ class HomeScreen extends ConsumerWidget {
     final upcomingPayouts = activeTandas.where((t) => t.myNextPayoutDate != null).toList()
       ..sort((a, b) => a.myNextPayoutDate!.compareTo(b.myNextPayoutDate!));
     final nextPayout = upcomingPayouts.isNotEmpty ? upcomingPayouts.first : null;
+
+    // Llegó con un enlace de invitación: en cuanto hay sesión se abre la pantalla para elegir número
+    final pendingInvite = ref.watch(pendingInviteProvider);
+    if (pendingInvite != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (ref.read(pendingInviteProvider) == null) return;
+        ref.read(pendingInviteProvider.notifier).clear();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => JoinTandaScreen(inviteCode: pendingInvite)),
+        );
+      });
+    }
 
     // Escucha en vivo las tandas de la lista: cualquier cambio recarga el Home
     for (final tanda in tandasList) {
@@ -556,7 +571,7 @@ class HomeScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Pega el código de invitación que te compartieron por WhatsApp:',
+                'Pega el enlace o el código que te compartieron por WhatsApp:',
                 style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
               ),
               const SizedBox(height: 16),
@@ -580,7 +595,8 @@ class HomeScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                final code = controller.text.trim().toUpperCase();
+                // Acepta el enlace completo (…?unirse=TANDA-XXXX) o el código suelto
+                final code = extractInviteCode(controller.text);
                 if (code.isEmpty) return;
                 Navigator.pop(dialogContext);
                 // Antes de entrar se ve la tanda y, si es de elección libre, se escoge el número
@@ -651,7 +667,14 @@ class HomeScreen extends ConsumerWidget {
       _ => '$totalSlots turnos',
     };
     final frequency = '${tanda.frequency.toUpperCase()} • ${currencyFormat.format(tanda.contributionAmount)} MXN';
-    final myNumbers = tanda.mySlotNumbers.map((n) => '#$n').join(', ');
+    // En sorteo el número no se revela hasta que el organizador sortea
+    final numbersHidden = tanda.assignmentMethod == 'draw' &&
+        tanda.numbersDrawnAt == null &&
+        (tanda.status == 'recruiting' || tanda.status == 'draft');
+    final placeCount = tanda.mySlotNumbers.length;
+    final myNumbers = numbersHidden
+        ? (placeCount == 0 ? '' : '$placeCount ${placeCount == 1 ? 'lugar' : 'lugares'}, número por sortear')
+        : tanda.mySlotNumbers.map((n) => '#$n').join(', ');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -698,7 +721,11 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              myNumbers.isNotEmpty ? '$frequency • Tus números: $myNumbers' : frequency,
+              myNumbers.isEmpty
+                  ? frequency
+                  : numbersHidden
+                      ? '$frequency • $myNumbers'
+                      : '$frequency • Tus números: $myNumbers',
               style: const TextStyle(
                 color: AppColors.darkTextSecondary,
                 fontSize: 12,

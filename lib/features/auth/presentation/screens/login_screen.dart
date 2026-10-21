@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/invite/pending_invite.dart';
 import '../../../../core/auth/biometric_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
@@ -151,6 +152,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (ref.watch(pendingInviteProvider) != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.gold.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
+                        ),
+                        child: const Text(
+                          '¡Te invitaron a una tanda! 🎉 Entra o crea tu cuenta y enseguida eliges tu número.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     if (showBiometric) ...[
                       _buildBiometricCard(biometricAccount),
                       const SizedBox(height: 18),

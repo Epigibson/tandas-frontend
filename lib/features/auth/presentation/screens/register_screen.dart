@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/clabe.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
@@ -234,7 +235,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           final clabe = val?.trim() ?? '';
                           if (clabe.isEmpty) return null;
                           if (clabe.length != 18) return 'La CLABE debe tener 18 dígitos';
-                          if (!_isValidClabe(clabe)) return 'La CLABE no es válida, revísala';
+                          if (!isValidClabe(clabe)) return 'La CLABE no es válida, revísala';
                           return null;
                         },
                         decoration: _buildInputDecoration(
@@ -294,17 +295,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
     ),
   );
-  }
-
-  /// Dígito verificador de la CLABE: pesos 3-7-1 sobre los primeros 17 dígitos
-  bool _isValidClabe(String clabe) {
-    const weights = [3, 7, 1];
-    var sum = 0;
-    for (var i = 0; i < 17; i++) {
-      sum += (int.parse(clabe[i]) * weights[i % 3]) % 10;
-    }
-    final checkDigit = (10 - sum % 10) % 10;
-    return checkDigit == int.parse(clabe[17]);
   }
 
   InputDecoration _buildInputDecoration({

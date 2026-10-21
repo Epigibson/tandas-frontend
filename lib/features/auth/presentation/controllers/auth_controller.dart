@@ -36,6 +36,21 @@ class AuthController extends AsyncNotifier<UserModel?> {
     }
   }
 
+  Future<void> updateProfile({
+    required String fullName,
+    String? email,
+    String? clabe,
+    String? bankName,
+  }) async {
+    final user = await ref.read(authRepositoryProvider).updateProfile(
+          fullName: fullName,
+          email: email,
+          clabe: clabe,
+          bankName: bankName,
+        );
+    state = AsyncValue.data(user);
+  }
+
   Future<void> login({
     required String phoneOrEmail,
     required String password,

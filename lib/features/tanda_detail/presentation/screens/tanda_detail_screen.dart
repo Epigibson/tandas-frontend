@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/realtime/tanda_realtime.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/clabe.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
+import '../../../../shared/widgets/invite_sheet.dart';
 import '../../../../shared/widgets/reset_code_dialog.dart';
 import '../../../admin/presentation/screens/admin_screen.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -97,7 +98,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('¿Ejecutar el sorteo?'),
         content: const Text(
-          'Se asignarán los turnos de forma aleatoria. Esta acción no se puede deshacer.',
+          'Se reparten los números al azar entre todos los lugares y se revelan a todos. '
+          'El sorteo se hace una sola vez y no se puede deshacer.',
           style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
         ),
         actions: [
@@ -120,7 +122,7 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('¡Sorteo ejecutado con éxito! Turnos asignados aleatoriamente 🎲🎉'),
+            content: Text('¡Listo el sorteo! Ya todos pueden ver su número 🎲🎉'),
             backgroundColor: AppColors.primaryDark,
           ),
         );
@@ -240,19 +242,84 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     );
   }
 
+  Widget _buildTransferInfo(Map<String, dynamic> user) {
+    final clabe = user['clabe'] as String?;
+    final bank = user['bank_name'] as String?;
+    final firstName = (user['full_name'] as String? ?? '').split(' ').first;
+    if (clabe == null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          '$firstName todavía no registra su CLABE en su perfil',
+          style: const TextStyle(fontSize: 11, color: Colors.white54),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Transferir a: ${bank ?? 'CLABE'} · ${formatClabe(clabe)}',
+              style: const TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: clabe));
+              HapticFeedback.selectionClick();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('CLABE de $firstName copiada'), backgroundColor: AppColors.primaryDark),
+              );
+            },
+            child: const Text('Copiar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRecruitingBanner({
     required bool isOrganizer,
     required int emptySlotsCount,
     DateTime? startDate,
+    required bool isDraw,
+    required bool numbersDrawn,
+    required bool hasMySlot,
   }) {
     final isFull = emptySlotsCount == 0;
-    final message = isOrganizer
-        ? (isFull
-            ? '¡Ya están todos los lugares! Cuando quieras, inicia la tanda para abrir la primera ronda.'
-            : 'Faltan $emptySlotsCount ${emptySlotsCount == 1 ? 'lugar' : 'lugares'} por apartar. Comparte el código para llenarlos.')
-        : (isFull
-            ? 'Todos los lugares están apartados. Esperando a que el organizador inicie la tanda.'
-            : 'Reuniendo participantes: faltan $emptySlotsCount ${emptySlotsCount == 1 ? 'lugar' : 'lugares'}.');
+    final missing = '$emptySlotsCount ${emptySlotsCount == 1 ? 'lugar' : 'lugares'}';
+    // Sorteo: llenar → sortear → iniciar. Elección libre: llenar → iniciar.
+    final needsDraw = isDraw && !numbersDrawn;
+    final String message;
+    if (isOrganizer) {
+      if (!isFull) {
+        message = needsDraw
+            ? 'Faltan $missing. Cuando se llene, haz el sorteo para repartir los números.'
+            : 'Faltan $missing por apartar. Comparte la invitación para llenarlos.';
+      } else if (needsDraw) {
+        message = '¡Ya están todos! Haz el sorteo para repartir los números.';
+      } else if (isDraw) {
+        message = '¡Números sorteados! Ya puedes iniciar la tanda (o esperar a la fecha de inicio).';
+      } else {
+        message = '¡Ya están todos los lugares! Cuando quieras, inicia la tanda para abrir la primera ronda.';
+      }
+    } else if (!isFull) {
+      message = needsDraw
+          ? 'Reuniendo participantes: faltan $missing. Los números se sortean cuando se llene.'
+          : 'Reuniendo participantes: faltan $missing.';
+    } else {
+      message = needsDraw
+          ? 'Ya están todos. Esperando el sorteo de números del organizador.'
+          : 'Todos los lugares están apartados. Esperando a que el organizador inicie la tanda.';
+    }
+    final pickOwnNumber = isOrganizer && !isDraw && !hasMySlot && !isFull;
 
     return LiquidGlassContainer(
       margin: const EdgeInsets.only(bottom: 12),
@@ -266,6 +333,13 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(message, style: const TextStyle(fontSize: 12, color: AppColors.darkTextPrimary)),
+          if (pickOwnNumber) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'Tú también eliges tu número: toca uno libre en la lista.',
+              style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+            ),
+          ],
           if (startDate != null) ...[
             const SizedBox(height: 6),
             Row(
@@ -281,7 +355,20 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
               ],
             ),
           ],
-          if (isOrganizer && isFull) ...[
+          if (isOrganizer && isFull && needsDraw) ...[
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.casino_outlined, size: 20),
+              label: const Text('Hacer el sorteo'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: AppColors.darkBg,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: _handleTriggerDraw,
+            ),
+          ],
+          if (isOrganizer && isFull && !needsDraw) ...[
             const SizedBox(height: 10),
             ElevatedButton.icon(
               icon: _isStarting
@@ -355,6 +442,231 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     } finally {
       if (mounted) setState(() => _isStarting = false);
     }
+  }
+
+  /// Libera un lugar. Si era el único de la persona (y no organiza), sale de la tanda:
+  /// se confirma antes y luego se regresa al inicio, porque ya no puede ver el detalle.
+  Future<void> _releaseSlot({
+    required String slotId,
+    required String successText,
+    bool leavesTanda = false,
+  }) async {
+    if (leavesTanda) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.darkSurface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('¿Salir de la tanda?'),
+          content: const Text(
+            'Es tu único lugar: si lo dejas, sales de la tanda y ya no la verás. '
+            'Puedes volver a entrar con la invitación mientras haya lugares.',
+            style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Me quedo'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Salir'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    HapticFeedback.lightImpact();
+    try {
+      await ref.read(tandaDetailActionsProvider).releaseSlot(slotId: slotId, tandaId: widget.tandaId);
+      if (leavesTanda) navigator.pop();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(leavesTanda ? 'Saliste de la tanda' : successText),
+          backgroundColor: AppColors.darkCard,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  Future<void> _runAction(Future<void> Function() action, String success) async {
+    final messenger = ScaffoldMessenger.of(context);
+    HapticFeedback.mediumImpact();
+    try {
+      await action();
+      messenger.showSnackBar(SnackBar(content: Text(success), backgroundColor: AppColors.primaryDark));
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  /// Sorteo antes de sortear: solo quién participa y cuántos lugares tiene, sin números
+  Widget _buildParticipants({
+    required List<dynamic> slotsData,
+    required List<dynamic> userSlots,
+    required String? currentUserId,
+    required bool isOrganizer,
+  }) {
+    final freeSlots = slotsData.where((s) => s['user'] == null).toList();
+    final people = <String, ({String name, List<String> slotIds})>{};
+    for (final slot in slotsData) {
+      final user = slot['user'];
+      if (user == null) continue;
+      final id = user['id'] as String;
+      final entry = people[id];
+      people[id] = (
+        name: user['full_name'] as String? ?? 'Participante',
+        slotIds: [...?entry?.slotIds, slot['id'] as String],
+      );
+    }
+    final total = slotsData.length;
+    final taken = total - freeSlots.length;
+    final isLastPlace = userSlots.length == 1 && !isOrganizer;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Participantes ($taken de $total lugares)',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Los números se revelan cuando el organizador hace el sorteo.',
+          style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 10),
+        for (final MapEntry(key: userId, value: person) in people.entries)
+          Card(
+            color: AppColors.darkSurface,
+            margin: const EdgeInsets.only(bottom: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                child: Text(
+                  person.name.isNotEmpty ? person.name[0].toUpperCase() : '?',
+                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                ),
+              ),
+              title: Text(
+                userId == currentUserId ? '${person.name} (Tú)' : person.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Text(
+                '${person.slotIds.length} ${person.slotIds.length == 1 ? 'lugar' : 'lugares'}',
+                style: const TextStyle(color: AppColors.darkTextSecondary, fontSize: 12),
+              ),
+              // El organizador puede quitarle un lugar a alguien o generarle su código
+              onTap: isOrganizer && userId != currentUserId
+                  ? () => _showParticipantActions(userId: userId, name: person.name, slotIds: person.slotIds)
+                  : null,
+            ),
+          ),
+        if (freeSlots.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              '${freeSlots.length} ${freeSlots.length == 1 ? 'lugar libre' : 'lugares libres'}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.w600),
+            ),
+          ),
+        const SizedBox(height: 8),
+        if (freeSlots.isNotEmpty)
+          OutlinedButton.icon(
+            icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+            label: Text(userSlots.isEmpty ? 'Apartar un lugar para mí' : 'Apartar otro lugar'),
+            onPressed: () => _runAction(
+              () => ref.read(tandaDetailActionsProvider).claimSlot(
+                    slotId: freeSlots.first['id'] as String,
+                    tandaId: widget.tandaId,
+                  ),
+              'Apartaste otro lugar. Tu número sale en el sorteo 🎲',
+            ),
+          ),
+        if (isOrganizer && freeSlots.isNotEmpty)
+          OutlinedButton.icon(
+            icon: const Icon(Icons.person_outline, size: 18),
+            label: const Text('Darle un lugar a alguien'),
+            onPressed: () async {
+              final user = await showUserPicker(context);
+              if (user == null) return;
+              await _runAction(
+                () => ref.read(tandaDetailActionsProvider).assignSlot(
+                      slotId: freeSlots.first['id'] as String,
+                      userId: user['id'] as String,
+                      tandaId: widget.tandaId,
+                    ),
+                'Le diste un lugar a ${(user['full_name'] as String).split(' ').first}',
+              );
+            },
+          ),
+        if (userSlots.isNotEmpty)
+          TextButton.icon(
+            icon: const Icon(Icons.remove_circle_outline, size: 18, color: Colors.orangeAccent),
+            label: Text(
+              isLastPlace ? 'Salir de la tanda' : 'Dejar un lugar',
+              style: const TextStyle(color: Colors.orangeAccent),
+            ),
+            onPressed: () => _releaseSlot(
+              slotId: userSlots.last['id'] as String,
+              successText: 'Dejaste un lugar',
+              leavesTanda: isLastPlace,
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showParticipantActions({required String userId, required String name, required List<String> slotIds}) {
+    final firstName = name.split(' ').first;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.darkSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.remove_circle_outline, color: Colors.orangeAccent, size: 18),
+                label: Text('Quitarle un lugar a $firstName', style: const TextStyle(color: Colors.orangeAccent)),
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _releaseSlot(slotId: slotIds.last, successText: 'Le quitaste un lugar a $firstName');
+                },
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.key_outlined, size: 18),
+                label: const Text('Código para cambiar su contraseña'),
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _handleCreateResetCode(userId: userId, userName: name);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _handleEditTanda(Map<String, dynamic> tanda) async {
@@ -518,6 +830,9 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         final tandaStatus = tanda['status'] as String? ?? 'recruiting';
         final isRecruiting = tandaStatus == 'recruiting' || tandaStatus == 'draft';
         final isDraw = tanda['assignment_method'] == 'draw';
+        final numbersDrawn = tanda['numbers_drawn_at'] != null;
+        // Sorteo sin sortear: los números no se muestran hasta que el organizador sortea
+        final numbersHidden = isDraw && isRecruiting && !numbersDrawn;
         final startDate = DateTime.tryParse(tanda['start_date'] as String? ?? '');
         final slotsData = tanda['slots'] as List<dynamic>? ?? [];
         final roundsData = tanda['rounds'] as List<dynamic>? ?? [];
@@ -594,23 +909,21 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
             backgroundColor: Colors.transparent,
             elevation: 0,
             actions: [
-              // El sorteo solo tiene sentido antes de arrancar la tanda y si no se eligieron números
-              if (isOrganizer && isRecruiting && isDraw)
+              // Mientras recluta se invita con QR o enlace; ya iniciada no tiene caso
+              if (isRecruiting)
                 IconButton(
-                  icon: const Icon(Icons.casino_outlined, color: AppColors.gold),
-                  tooltip: 'Ejecutar Sorteo Aleatorio',
-                  onPressed: _handleTriggerDraw,
+                  icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary),
+                  tooltip: 'Invitar con QR o enlace',
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    showInviteSheet(
+                      context,
+                      title: title,
+                      inviteCode: inviteCode,
+                      potText: currencyFormat.format(payoutTotal),
+                    );
+                  },
                 ),
-              IconButton(
-                icon: const Icon(Icons.share_outlined, color: AppColors.primary),
-                tooltip: 'Compartir invitación',
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  final msg =
-                      '¡Hola! Te invito a mi tanda "$title". Únete en la app con este código: $inviteCode 📱🎉';
-                  SharePlus.instance.share(ShareParams(text: msg, subject: 'Invitación a la tanda "$title"'));
-                },
-              ),
               if (isOrganizer && isRecruiting)
                 PopupMenuButton<String>(
                   // more_vert_rounded ya viene en la fuente de íconos de la versión instalada
@@ -733,6 +1046,9 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                           ),
                         ],
                       ),
+                      // A dónde transferir: la cuenta de quien cobra esta ronda
+                      if (displayRound != null && beneficiarySlot?['user'] != null)
+                        _buildTransferInfo(beneficiarySlot['user'] as Map<String, dynamic>),
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -800,6 +1116,9 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                               isOrganizer: isOrganizer,
                               emptySlotsCount: emptySlotsCount,
                               startDate: startDate,
+                              isDraw: isDraw,
+                              numbersDrawn: numbersDrawn,
+                              hasMySlot: userSlots.isNotEmpty,
                             ),
                           if (userSlots.isNotEmpty)
                             Container(
@@ -816,29 +1135,41 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Tus números: ${userSlots.map((s) => '#${s['slot_number']}').join(', ')} (${userSlots.length} ${userSlots.length == 1 ? 'número' : 'números'})'
-                                          '${isRecruiting && emptySlotsCount > 0 ? ' • Toca cualquier número libre para apartar otro' : ''}',
+                                      numbersHidden
+                                          ? 'Tienes ${userSlots.length} ${userSlots.length == 1 ? 'lugar' : 'lugares'} • Tu número se sabrá en el sorteo'
+                                          : 'Tus números: ${userSlots.map((s) => '#${s['slot_number']}').join(', ')} (${userSlots.length} ${userSlots.length == 1 ? 'número' : 'números'})'
+                                              '${isRecruiting && !isDraw && emptySlotsCount > 0 ? ' • Toca un número libre para cambiarte o apartar otro' : ''}',
                                       style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          TandaJourneyTimeline(
-                            slots: mappedSlots,
-                            onSlotTap: (slot) {
-                              _showSlotModal(
-                                context: context,
-                                slot: slot,
-                                beneficiarySlot: beneficiarySlot,
-                                isOrganizer: isOrganizer,
-                                currentUserId: currentUser?.id,
-                                tandaStatus: tandaStatus,
-                                collectingRoundId: collectingRoundId,
-                                paidUserIds: paidThisRound,
-                              );
-                            },
-                          ),
+                          if (numbersHidden)
+                            _buildParticipants(
+                              slotsData: slotsData,
+                              userSlots: userSlots,
+                              currentUserId: currentUser?.id,
+                              isOrganizer: isOrganizer,
+                            )
+                          else
+                            TandaJourneyTimeline(
+                              slots: mappedSlots,
+                              onSlotTap: (slot) {
+                                _showSlotModal(
+                                  context: context,
+                                  slot: slot,
+                                  beneficiarySlot: beneficiarySlot,
+                                  isOrganizer: isOrganizer,
+                                  currentUserId: currentUser?.id,
+                                  tandaStatus: tandaStatus,
+                                  collectingRoundId: collectingRoundId,
+                                  paidUserIds: paidThisRound,
+                                  isFreeChoice: !isDraw,
+                                  myRawSlots: userSlots,
+                                );
+                              },
+                            ),
                         ],
                       ),
                     )),
@@ -1122,6 +1453,8 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
     required String tandaStatus,
     required String? collectingRoundId,
     required Set<String> paidUserIds,
+    required bool isFreeChoice,
+    required List<dynamic> myRawSlots,
   }) {
     final currencyFormat = NumberFormat.currency(locale: 'es_MX', symbol: '\$');
     final isRecruiting = tandaStatus == 'recruiting' || tandaStatus == 'draft';
@@ -1139,6 +1472,9 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
         collectingRoundId != null &&
         !paidUserIds.contains(slot.userId);
     final canAssign = isOrganizer && slot.isAvailable && isRecruiting;
+    // Elección libre con un solo número: cambiarse a otro en un paso
+    final canMove = isFreeChoice && slot.isAvailable && isRecruiting && myRawSlots.length == 1;
+    final leavesTanda = isMySlot && myRawSlots.length == 1 && !isOrganizer;
     final firstName = slot.userName.replaceAll(' (Tú)', '').split(' ').first;
     final messenger = ScaffoldMessenger.of(context);
 
@@ -1182,9 +1518,11 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Turno #${slot.slotNumber}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: Text(
+                      'Turno #${slot.slotNumber}',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
                   ),
                   if (isMySlot)
                     Container(
@@ -1245,12 +1583,18 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Fecha de cobro:', style: TextStyle(color: Colors.white60, fontSize: 12)),
-                        Text(
-                          slot.dueDate != null
-                              ? DateFormat('dd MMMM yyyy', 'es_MX').format(slot.dueDate!)
-                              : 'Por definir',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        const Expanded(
+                          child: Text('Fecha de cobro:', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            slot.dueDate != null
+                                ? DateFormat('dd MMMM yyyy', 'es_MX').format(slot.dueDate!)
+                                : 'Por definir',
+                            textAlign: TextAlign.end,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
                         ),
                       ],
                     ),
@@ -1258,13 +1602,22 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Bolsa total a recibir:', style: TextStyle(color: Colors.white60, fontSize: 12)),
-                        Text(
-                          currencyFormat.format(slot.amount),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: AppColors.gold,
+                        const Expanded(
+                          child: Text('Bolsa total a recibir:', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              currencyFormat.format(slot.amount),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: AppColors.gold,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -1273,12 +1626,42 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                 ),
               ),
               const SizedBox(height: 16),
+              if (canMove) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                    label: Text('Cambiarme del #${myRawSlots.first['slot_number']} al #${slot.slotNumber}'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.darkBg,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      run(
+                        () => ref.read(tandaDetailActionsProvider).moveSlot(
+                              slotId: myRawSlots.first['id'] as String,
+                              toNumber: slot.slotNumber,
+                              tandaId: widget.tandaId,
+                            ),
+                        '¡Listo! Ahora tienes el #${slot.slotNumber} 🎉',
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               if (canClaim) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-                    label: Text('¡Apartar Turno #${slot.slotNumber} para mí!'),
+                    label: Text(
+                      myRawSlots.isEmpty ? '¡Apartar el #${slot.slotNumber} para mí!' : 'Apartar también el #${slot.slotNumber}',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.darkBg,
@@ -1476,7 +1859,11 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.remove_circle_outline, color: Colors.orangeAccent, size: 18),
                     label: Text(
-                      isMySlot ? 'Liberar este turno' : 'Quitarle este número a $firstName',
+                      leavesTanda
+                          ? 'Liberar mi número y salir de la tanda'
+                          : isMySlot
+                              ? 'Liberar este número'
+                              : 'Quitarle este número a $firstName',
                       style: const TextStyle(color: Colors.orangeAccent),
                     ),
                     style: OutlinedButton.styleFrom(
@@ -1484,30 +1871,15 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    onPressed: () async {
-                      // Se toma antes del await: el contexto del modal deja de existir al cerrarlo
-                      final messenger = ScaffoldMessenger.of(context);
+                    onPressed: () {
                       Navigator.pop(sheetContext);
-                      HapticFeedback.lightImpact();
-                      try {
-                        await ref.read(tandaDetailActionsProvider).releaseSlot(
-                              slotId: slot.slotId,
-                              tandaId: widget.tandaId,
-                            );
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text('Turno #${slot.slotNumber} liberado con éxito'),
-                            backgroundColor: AppColors.darkCard,
-                          ),
-                        );
-                      } catch (e) {
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(e.toString().replaceAll('Exception: ', '')),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
-                      }
+                      _releaseSlot(
+                        slotId: slot.slotId,
+                        successText: isMySlot
+                            ? 'Liberaste el #${slot.slotNumber}'
+                            : 'Le quitaste el #${slot.slotNumber} a $firstName',
+                        leavesTanda: leavesTanda,
+                      );
                     },
                   ),
                 ),

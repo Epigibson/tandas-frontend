@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/brand_config.dart';
+import '../../../../shared/widgets/invite_sheet.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 import '../../data/models/tanda_model.dart';
 import '../controllers/tanda_controller.dart';
@@ -216,15 +216,18 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.share_outlined),
-                label: const Text('Compartir invitación'),
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Invitar con QR o enlace'),
                 onPressed: () {
                   HapticFeedback.selectionClick();
-                  final msg =
-                      '¡Hola familia! Creé la tanda "$title" con bolsa de ${currencyFormat.format(pot)} MXN. Únanse en la app con el código: $inviteCode 📱🎉';
-                  Navigator.pop(context); // Cierra diálogo
-                  Navigator.pop(context); // Regresa al Home
-                  SharePlus.instance.share(ShareParams(text: msg, subject: 'Invitación a la tanda "$title"'));
+                  final navigator = Navigator.of(context);
+                  navigator.pop(); // Cierra diálogo
+                  showInviteSheet(
+                    navigator.context,
+                    title: title,
+                    inviteCode: inviteCode,
+                    potText: '${currencyFormat.format(pot)} MXN',
+                  ).then((_) => navigator.pop()); // Al cerrar la hoja regresa al Home
                 },
               ),
             ),
@@ -235,7 +238,7 @@ class _CreateTandaScreenState extends ConsumerState<CreateTandaScreen> {
                   Navigator.pop(context); // Cierra diálogo
                   Navigator.pop(context); // Regresa al Home
                 },
-                child: const Text('Compartir después'),
+                child: const Text('Invitar después'),
               ),
             ),
           ],
