@@ -11,6 +11,7 @@ import '../../../../core/utils/clabe.dart';
 import '../../../../core/theme/brand_config.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
 import '../../../../shared/widgets/invite_sheet.dart';
+import '../../../../shared/widgets/pill_tab_bar.dart';
 import '../../../../shared/widgets/reset_code_dialog.dart';
 import '../../../admin/presentation/screens/admin_screen.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -1086,16 +1087,12 @@ class _TandaDetailScreenState extends ConsumerState<TandaDetailScreen>
               ),
 
               // Selector de Pestañas
-              TabBar(
+              PillTabBar(
                 controller: _tabController,
-                indicatorColor: AppColors.primary,
-                indicatorWeight: 3,
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.darkTextSecondary,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 2),
                 tabs: const [
-                  Tab(text: 'El Camino (Turnos)'),
-                  Tab(text: 'Aportaciones'),
+                  PillTab(Icons.flag_outlined, 'El Camino (Turnos)'),
+                  PillTab(Icons.receipt_long_outlined, 'Aportaciones'),
                 ],
               ),
 

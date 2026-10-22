@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/clabe.dart';
 import '../../../../shared/widgets/liquid_glass.dart';
+import '../../../../shared/widgets/pill_tab_bar.dart';
 import '../../../../shared/widgets/reset_code_dialog.dart';
 import '../../../tanda_creator/data/models/tanda_model.dart';
 import '../../../tanda_creator/presentation/controllers/tanda_controller.dart';
@@ -35,13 +36,10 @@ class AdminScreen extends StatelessWidget {
           title: const Text('Administración'),
           backgroundColor: Colors.transparent,
           elevation: 0,
-          bottom: const TabBar(
-            indicatorColor: AppColors.primary,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.darkTextSecondary,
+          bottom: const PillTabBar(
             tabs: [
-              Tab(text: 'Tandas'),
-              Tab(text: 'Personas'),
+              PillTab(Icons.stars_outlined, 'Tandas'),
+              PillTab(Icons.group_outlined, 'Personas'),
             ],
           ),
         ),
